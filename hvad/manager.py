@@ -246,7 +246,10 @@ class TranslationQueryset(QuerySet):
         """ Creates a clone of this queryset - Django equivalent of copy()
         This method keeps all defining attributes and drops data caches
         """
-        kwargs.update({
+
+        qs = super(TranslationQueryset, self)._clone()
+
+        kwargs = {
             'shared_model': self.shared_model,
             '_local_field_names': self._local_field_names,
             '_field_translator': self._field_translator,
@@ -254,15 +257,15 @@ class TranslationQueryset(QuerySet):
             '_language_fallbacks': self._language_fallbacks,
             '_raw_select_related': self._raw_select_related,
             '_forced_unique_fields': list(self._forced_unique_fields),
-            '_language_filter_tag': getattr(self, '_language_filter_tag', False),
+            '_language_filter_tag': getattr(self, '_language_filter_tag',
+                                            False),
             '_hvad_switch_fields': self._hvad_switch_fields,
-        })
-        if django.VERSION < (1, 9):
-            kwargs.update({
-                'klass': None if klass is None else self._get_class(klass),
-                'setup': setup,
-            })
-        return super(TranslationQueryset, self)._clone(**kwargs)
+        }
+
+        for item in kwargs.items():
+            setattr(qs, item[0], item[1])
+
+        return qs
 
     @property
     def field_translator(self):
