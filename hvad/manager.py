@@ -990,13 +990,17 @@ class TranslationAwareQueryset(QuerySet):
         raise NotImplementedError()
 
     def _clone(self, klass=None, setup=False, **kwargs):
-        kwargs.update({
-            '_language_code': self._language_code,
-        })
+        #kwargs.update({
+        #    '_language_code': self._language_code,
+        #})
         if django.VERSION < (1, 9):
             kwargs.update({'klass': klass, 'setup': setup})
-        return super(TranslationAwareQueryset, self)._clone(**kwargs)
+        clone = super(TranslationAwareQueryset, self)._clone(**kwargs)
 
+        clone._language_code = self._language_code
+        
+        return clone
+        
     def _filter_extra(self, extra_filters):
         if extra_filters.children:
             qs = self._next_is_sticky()
