@@ -111,11 +111,11 @@ class TranslatableModelAdminMixin(object):
 
 class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
     form = TranslatableModelForm
-    
+
     change_form_template = 'admin/hvad/change_form.html'
-    
+
     deletion_not_allowed_template = 'admin/hvad/deletion_not_allowed.html'
-    
+
     def __init__(self, *args, **kwargs):
         super(TranslatableAdmin, self).__init__(*args, **kwargs)
         self.reverse = functools.partial(reverse, current_app=self.admin_site.name)
@@ -139,7 +139,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 self.admin_site.admin_view(self.delete_translation),
                 name='%s_%s_delete_translation' % info),
         ] + urlpatterns
-    
+
     def get_form(self, request, obj=None, **kwargs):
         """
         Returns a Form class for use in the admin add view. This is used by
@@ -164,9 +164,9 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         defaults.update(kwargs)
         language = self._language(request)
         return translatable_modelform_factory(language, self.model, **defaults)
-    
 
-    
+
+
     def render_change_form(self, request, context, add=False, change=False,
                            form_url='', obj=None):
         lang_code = self._language(request)
@@ -194,7 +194,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                                                                   context,
                                                                   add, change,
                                                                   form_url, obj)
-        
+
     def response_change(self, request, obj):
         response = super(TranslatableAdmin, self).response_change(request, obj)
         if 'Location' in response:
@@ -205,7 +205,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                     response['Location'] = '%s?%s=%s' % (response['Location'],
                         self.query_language_key, request.GET[self.query_language_key])
         return response
-    
+
     @csrf_protect_m
     @transaction.atomic
     def delete_translation(self, request, object_id, language_code):
@@ -213,7 +213,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         opts = self.model._meta
         app_label = opts.app_label
         translations_model = opts.translations_model
-        
+
         try:
             obj = translations_model.objects.select_related('master').get(
                                                 master__pk=unquote(object_id),
@@ -223,7 +223,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
 
         if not self.has_delete_permission(request, obj):
             raise PermissionDenied
-        
+
         if len(obj.master.get_available_languages()) <= 1:
             return self.deletion_not_allowed(request, obj, language_code)
 
@@ -231,11 +231,11 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
 
         # Populate deleted_objects, a data structure of all related objects that
         # will also be deleted.
-        
+
         protected = False
         deleted_objects, model_count, perms_needed, protected = get_deleted_objects(
             [obj], translations_model._meta, request.user, self.admin_site, using)
-        
+
         lang = get_language_info(language_code)['name_local']
 
         if request.POST: # The user has already confirmed the deletion.
@@ -280,7 +280,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 "app_label": app_label,
             },
         )
-    
+
     def deletion_not_allowed(self, request, obj, language_code):
         opts = self.model._meta
         return render(
@@ -295,10 +295,10 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 'object_name': force_text(opts.verbose_name),
             },
         )
-        
+
     def delete_model_translation(self, request, obj):
         obj.delete()
-    
+
     def get_object(self, request, object_id, from_field=None):
         queryset = self.get_queryset(request)
         if isinstance(queryset, TranslationQueryset): # will always be true once Django 1.9 is required
@@ -334,7 +334,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
 
     def get_queryset(self, request):
         language = self._language(request)
-        qs = self.model._default_manager.language(language).fallbacks(*hvad_settings.FALLBACK_LANGUAGES)
+        qs = self.model._default_manager.language(language)
 
         # TODO: this should be handled by some parameter to the ChangeList.
         ordering = getattr(self, 'ordering', None) or ()
