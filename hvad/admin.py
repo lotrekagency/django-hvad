@@ -336,6 +336,11 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         language = self._language(request)
         qs = self.model._default_manager.language(language)
 
+        fallback_languages = hvad_settings.FALLBACK_LANGUAGES
+
+        if language in fallback_languages:
+            qs = qs.fallbacks(*hvad_settings.FALLBACK_LANGUAGES)
+
         # TODO: this should be handled by some parameter to the ChangeList.
         ordering = getattr(self, 'ordering', None) or ()
         if ordering:
