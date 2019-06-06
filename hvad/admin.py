@@ -164,7 +164,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         defaults.update(kwargs)
         language = self._language(request)
 
-        if django.VERSION > (2, 1):
+        if django.VERSION > (2, 1) and 'change' in defaults:
             del defaults['change']
 
         return translatable_modelform_factory(language, self.model, **defaults)
