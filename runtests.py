@@ -24,12 +24,16 @@ CONFIGURATION = {
         ('en', u'English'),
         ('ja', u'日本語'),
     ),
+    #'FALLBACK_LANGUAGES': ('en', 'ja'),
     'SECRET_KEY': 'dummy',
     'ROOT_URLCONF': 'hvad.test_utils.project.urls',
     'TEMPLATES': [{
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'APP_DIRS': True,
-        'OPTIONS': {'context_processors': ['django.contrib.auth.context_processors.auth']}
+        'OPTIONS': {'context_processors': [
+            'django.contrib.auth.context_processors.auth',
+            'django.contrib.messages.context_processors.messages',
+        ]}
     }],
     MIDDLEWARE_KEY: (
         'django.contrib.sessions.middleware.SessionMiddleware',
@@ -47,6 +51,7 @@ CONFIGURATION = {
         'django.contrib.staticfiles',
         'hvad',
         'hvad.test_utils.project.app',
+        'django.contrib.messages'
     ),
     'STATIC_URL': '/static/',
 }
@@ -80,7 +85,6 @@ def main(database=None, failfast=False, verbosity=1, test_labels=None):
     test_labels = ['hvad.%s' % label for label in test_labels] if test_labels else ['hvad']
     if database is None:
         database = os.environ.get('DATABASE_URL', 'sqlite://localhost/hvad.db')
-
     config = CONFIGURATION.copy()
     config['DATABASES'] = {'default': parse_database(database)}
     settings.configure(**config)

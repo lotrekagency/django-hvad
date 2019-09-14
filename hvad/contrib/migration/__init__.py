@@ -1,0 +1,1 @@
+from hvad.contrib.migration.hvad_migration import KeepTranslationsMixin
