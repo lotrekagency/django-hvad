@@ -31,7 +31,7 @@ extensions = [
     'github'
 ]
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/2.7', None),
+    'python': ('http://docs.python.org/3.6', None),
     'django': ('http://readthedocs.org/docs/django/en/latest/', None),
 }
 
@@ -42,10 +42,10 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'django-hvad'
-copyright = u'2011-2015, Kristian Øllegaard, Jonas Obrist & contributors'
+copyright = u'2011-2018, Kristian Øllegaard, Jonas Obrist & contributors'
 
-version = '1.8'
-release = '1.8.0'
+version = '2.0'
+release = '2.0.0'
 
 
 # The name of the Pygments (syntax highlighting) style to use.

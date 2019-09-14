@@ -2,13 +2,11 @@ from django.db import models
 from django.template.defaultfilters import slugify
 from hvad.models import TranslatableModel, TranslatedFields
 from hvad.manager import TranslationManager, TranslationQueryset
-from hvad.utils import get_cached_translation
 from django.utils.encoding import python_2_unicode_compatible
 
 #===============================================================================
 # Basic models
 
-@python_2_unicode_compatible
 class Normal(TranslatableModel):
     shared_field = models.CharField(max_length=255)
     translations = TranslatedFields(
@@ -16,9 +14,8 @@ class Normal(TranslatableModel):
     )
 
     def __str__(self):
-        return self.safe_translation_getter('translated_field', self.shared_field)
+        return self.translated_field if self.translations.active else self.shared_field
 
-@python_2_unicode_compatible
 class Unique(TranslatableModel):
     shared_field = models.CharField(max_length=255, unique=True)
     translations = TranslatedFields(
@@ -30,9 +27,8 @@ class Unique(TranslatableModel):
         unique_together = [('language_code', 'unique_by_lang')]
 
     def __str__(self):
-        return self.safe_translation_getter('translated_field', self.shared_field)
+        return self.translated_field if self.translations.active else self.shared_field
 
-@python_2_unicode_compatible
 class NormalProxy(Normal):
     def __str__(self):
         return u'proxied %s' % super(NormalProxy, self).__str__()
@@ -40,7 +36,6 @@ class NormalProxy(Normal):
     class Meta:
         proxy = True
 
-@python_2_unicode_compatible
 class NormalProxyProxy(NormalProxy):
     def __str__(self):
         return u'proxied^2 %s' % super(NormalProxyProxy, self).__str__()
@@ -99,7 +94,6 @@ class RelatedRelated(TranslatableModel):
     )
 
 
-@python_2_unicode_compatible
 class Many(models.Model):
     """ Untranslatable Model with M2M key to Normal """
     name = models.CharField(max_length=128)
@@ -109,7 +103,6 @@ class Many(models.Model):
         return self.name
 
 
-@python_2_unicode_compatible
 class TranslatedMany(TranslatableModel):
     """ WARNING: this is not officially supported. This test model is more
         of a monitor so we know what we break, than a promise not to break it.
@@ -122,7 +115,7 @@ class TranslatedMany(TranslatableModel):
 
     def __str__(self):
         return ('%s, %s <%s>' % (self.name, self.translated_field, self.language_code)
-                if get_cached_translation(self) is not None
+                if self.translations.active is not None
                 else '%s <none>' % self.name)
 
 
@@ -206,7 +199,6 @@ class AbstractB(TranslatableModel):
     class Meta:
         abstract = True
 
-@python_2_unicode_compatible
 class ConcreteAB(AbstractAA, AbstractB):
     shared_field_ab = models.CharField(max_length=255)
     translations = TranslatedFields(
@@ -215,18 +207,17 @@ class ConcreteAB(AbstractAA, AbstractB):
 
     def __str__(self):
         return '%s, %s, %s' % (
-            str(self.safe_translation_getter('translated_field_a', self.shared_field_a)),
-            self.safe_translation_getter('translated_field_b', str(self.shared_field_b)),
-            self.safe_translation_getter('translated_field_ab', self.shared_field_ab),
+            (self.translated_field_a, self.translated_field_b, self.translated_field_ab)
+            if self.translations.active else
+            (self.shared_field_a, self.shared_field_b, self.shared_field_ab)
         )
 
-@python_2_unicode_compatible
 class ConcreteABProxy(ConcreteAB):
     def __str__(self):
         return 'proxied %s, %s, %s' % (
-            str(self.safe_translation_getter('translated_field_a', self.shared_field_a)),
-            self.safe_translation_getter('translated_field_b', str(self.shared_field_b)),
-            self.safe_translation_getter('translated_field_ab', self.shared_field_ab),
+            (self.translated_field_a, self.translated_field_b, self.translated_field_ab)
+            if self.translations.active else
+            (self.shared_field_a, self.shared_field_b, self.shared_field_ab)
         )
     class Meta:
         proxy = True

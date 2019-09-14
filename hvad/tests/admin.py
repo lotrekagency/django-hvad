@@ -2,15 +2,12 @@
 import django
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
-if django.VERSION >= (1, 10):
-    from django.urls import reverse
-else:
-    from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.utils import translation
 from django.http import HttpResponseForbidden, HttpResponseRedirect, QueryDict
+from urllib.parse import urlparse
 from hvad.admin import InlineModelForm
 from hvad.admin import translatable_modelform_factory
-from hvad.compat import urlparse
 from hvad.forms import TranslatableModelForm
 from hvad.test_utils.fixtures import NormalFixture, UsersFixture
 from hvad.test_utils.data import NORMAL
@@ -23,93 +20,12 @@ class BaseAdminTests(object):
         return admin.site._registry[model]
 
 
-class ModelHelpersTests(HvadTestCase, NormalFixture):
-    normal_count = 1
-    translations = ('en', 'ja')
-
-    def test_translation_getters_cached(self):
-        obj = Normal.objects.language('en').get(pk=self.normal_id[1])
-
-        # Translation getters should use the cached translation
-        with self.assertNumQueries(0):
-            self.assertEqual(obj.safe_translation_getter('translated_field'),
-                             NORMAL[1].translated_field['en'])
-            self.assertEqual(obj.lazy_translation_getter('translated_field'),
-                             NORMAL[1].translated_field['en'])
-
-        # Translation getters should use the cached translation
-        # regardless of current language settings
-        with translation.override('ja'):
-            with self.assertNumQueries(0):
-                self.assertEqual(obj.safe_translation_getter('translated_field'),
-                                 NORMAL[1].translated_field['en'])
-                self.assertEqual(obj.lazy_translation_getter('translated_field'),
-                                 NORMAL[1].translated_field['en'])
-
-    def test_translation_getters_uncached(self):
-        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
-
-        with translation.override('ja'):
-            # Safe translation getter must not trigger a query
-            with self.assertNumQueries(0):
-                self.assertEqual(obj.safe_translation_getter('translated_field'),
-                                 None)
-            # Lazy translation getter must find something
-            with self.assertNumQueries(1):
-                self.assertEqual(obj.lazy_translation_getter('translated_field'),
-                                 NORMAL[1].translated_field['ja'])
-            # Lazy must have cached the translations
-            with self.assertNumQueries(0):
-                self.assertEqual(obj.safe_translation_getter('translated_field'),
-                                 NORMAL[1].translated_field['ja'])
-
-    def test_translation_getters_missing(self):
-        # Try when both current language and first fallbacks are missing
-        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
-        with self.settings(LANGUAGE_CODE='tt',
-                           LANGUAGES=(('tt', 'Missing'),
-                                      ('en', 'English'),
-                                      ('ja', 'Japanese'))):
-            with translation.override('th'):
-                self.assertEqual(obj.lazy_translation_getter('translated_field'),
-                                    NORMAL[1].translated_field['en'])
-
-        # Now try with a different fallback priority
-        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
-        with self.settings(LANGUAGE_CODE='tt',
-                           LANGUAGES=(('tt', 'Missing'),
-                                      ('ja', 'Japanese'),
-                                      ('en', 'English'))):
-            with translation.override('th'):
-                self.assertEqual(obj.lazy_translation_getter('translated_field'),
-                                    NORMAL[1].translated_field['ja'])
-
-    def test_translation_getters_no_match(self):
-        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
-        with self.settings(LANGUAGE_CODE='tt',
-                           LANGUAGES=(('tt', 'Missing'),
-                                      ('sr', 'English'),
-                                      ('de', 'Japanese'))):
-            with translation.override('th'):
-                self.assertIn(obj.lazy_translation_getter('translated_field'),
-                              NORMAL[1].translated_field.values())
-
-    def test_translation_getters_no_translation(self):
-        Normal.objects.language('all').filter(pk=self.normal_id[1]).delete_translations()
-        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
-        with translation.override('en'):
-            self.assertEqual(obj.lazy_translation_getter('translated_field'), None)
-
-
 class AdminMethodsTests(HvadTestCase, BaseAdminTests, NormalFixture):
     normal_count = 1
 
     def test_all_translations(self):
         # Create an unstranslated model and get the translations
         myadmin = self._get_admin(Normal)
-
-        obj = Normal.objects.untranslated().create(shared_field="shared")
-        self.assertEqual(myadmin.all_translations(obj), "")
 
         # Create a english translated model and make sure the active language
         # is highlighted in admin with <strong></strong>
@@ -148,11 +64,6 @@ class AdminMethodsTests(HvadTestCase, BaseAdminTests, NormalFixture):
             with self.assertNumQueries(0):
                 self.assertTrue(myadmin.all_translations(obj).find("<strong>") == -1)
 
-    def test_get_available_languages(self):
-        obj = Normal.objects.language('en').get(pk=self.normal_id[1])
-        admin = self._get_admin(Normal)
-        self.assertRaises(NotImplementedError, admin.get_available_languages, obj)
-
     def test_get_object(self):
         # Check if it returns a model, if there is at least one translation
         myadmin = self._get_admin(Normal)
@@ -178,6 +89,7 @@ class AdminMethodsTests(HvadTestCase, BaseAdminTests, NormalFixture):
 
         # Check what happens if there is no translations at all
         obj = Normal.objects.untranslated().create(shared_field="shared")
+        Normal.objects.language('all').filter(pk=obj.pk).delete_translations()
         with translation.override('en'):
             self.assertIs(myadmin.get_object(get_request, obj.pk), None)
 

@@ -35,12 +35,17 @@ A full example of a model with translations::
         distributor = models.CharField(max_length=255)
 
         translations = TranslatedFields(
-            title = models.CharField(max_length=100),
-            subtitle = models.CharField(max_length=255),
-            released = models.DateTimeField(),
+            title=models.CharField(max_length=100),
+            subtitle=models.CharField(max_length=255),
+            released=models.DateTimeField(),
         )
         class Meta:
-            unique_together = [('title', 'subtitle')]
+            unique_together = [('title', 'subtitle'), ('title', 'language_code')]
+
+.. note:: Using :class:`~django.db.models.ManyToManyField` as a translated field is
+          not supported. It is not forbidden because some projects do use it, but
+          doing so requires digging into hvad internals. See
+          :ref:`this FAQ entry <no-translated-many>` for details.
 
 .. note:: The :djterm:`Meta <meta-options>` class of the model may not use the
           translatable fields in :attr:`~django.db.models.Options.order_with_respect_to`.
@@ -49,9 +54,9 @@ A full example of a model with translations::
           field ``language_code`` can be overriden in order to set it to be a
           different type of field, or change its options.
 
-***********************
-New and Changed Methods
-***********************
+***********************************
+New and Changed Methods and Objects
+***********************************
 
 translate
 =========
@@ -63,60 +68,6 @@ translate
     .. note:: This method does not perform any database queries. It assumes the
               translation does not exist. If it does exist, trying to save the
               instance will raise an :exc:`~django.db.IntegrityError`.
-
-
-safe_translation_getter
-=======================
-
-.. method:: safe_translation_getter(name, default=None)
-
-    Returns the value of the field specified by ``name`` if it's available on
-    this instance in the currently cached language. It does not try to get the
-    value from the database. Returns the value specified in ``default`` if no
-    translation was cached on this instance or the translation does not have a
-    value for this field.
-
-    This method is useful to safely get a value in methods such as
-    :meth:`~django.db.models.Model.__unicode__`.
-
-    .. note:: This method never performs any database queries.
-
-Example usage::
-
-    class MyModel(TranslatableModel):
-        translations = TranslatedFields(
-            name = models.CharField(max_length=255)
-        )
-
-        def __unicode__(self):
-            return self.safe_translation_getter('name', str(self.pk))
-
-
-lazy_translation_getter
-=======================
-
-.. versionchanged:: 0.4
-.. method:: lazy_translation_getter(name, default=None)
-
-    Tries to get the value of the field specified by ``name`` using
-    :meth:`safe_translation_getter`. If this fails, tries to load a translation
-    from the database. If none exists, returns the value specified in ``default``.
-
-    This method is useful to get a value in methods such as
-    :meth:`~django.db.models.Model.__unicode__`.
-
-
-get_available_languages
-=======================
-
-.. method:: get_available_languages
-
-    Returns a list of available language codes for this instance.
-
-    .. note:: This method runs a database query to fetch the available
-              languages, unless they were prefetched before (if the instance
-              was retrieved with a call to ``prefetch_related('translations')``).
-
 
 save
 ====
@@ -134,13 +85,84 @@ save
     - If only translated fields are specified, the shared model update will be skipped.
       Note that this means signals will not be triggered.
 
+    The two queries are run in a single translation
+
+.. _model-translations:
+
+translations
+============
+
+.. versionadded:: 2.0
+
+.. attribute:: translations
+
+    The actual name of this attribute is that of the
+    :class:`~hvad.models.TranslatedFields` instance. Third-party modules can
+    get its name as ``Model._meta.translations_accessor``.
+    It gives access to the
+    :class:`~django.db.models.fields.related.RelatedManager` for
+    :term:`translations <Translations Model>`. This manager includes the
+    following additions:
+
+    .. attribute:: model
+
+        The underlying model class of translations for user code.
+        Third-party modules should use ``Model._meta.translations_model`` instead.
+
+    .. method:: prefetch(self, force_reload=False)
+
+        Force loading of all translations for the instance. If they are
+        already loaded, this is a no-op unless ``force_reload`` is ``True``.
+
+        The cache used by this method is the same as the one used by
+        :meth:`~django.db.models.query.QuerySet.prefetch_related`, so
+        generally it is better to do ``.prefetch_related('translations')``
+        when loading the model.
+
+    .. method:: activate(self, language_or_translation)
+
+        Sets the active translation for the instance. Possible values are:
+
+            * ``None`` to unload any currently loaded translation and let
+              the object without a translation.
+            * A :term:`Translations Model` instance attached to this model, for
+              instance one returned by ``instance.translations.all()``.
+            * A language code to load the corresponding translation. This forces
+              a calls to :meth:`prefetch`, then looks for a translation in
+              loaded objects. Finally, if no translation is found in given
+              language, raise a :exc:`~django.db.models.Model.DoesNotExist` exception.
+
+    .. attribute:: active
+
+        Returns the translation currently cached onto the instance, or ``None``
+        if the instance has no translation cached.
+
+    .. method:: get_language(self, language)
+
+        Returns the :term:`Translations Model` instance for given language. Special
+        value ``None`` is replaced with
+        :func:`current language <django.utils.translation.get_language>`.
+
+        If translations have been cached by :meth:`prefetch` or
+        :meth:`~django.db.models.query.QuerySet.prefetch_related`, the cache is
+        used. Otherwise, a database query is run, and the result is **not** cached.
+
+    .. method:: all_languages(self)
+
+        Returns a set of all language codes the instance has a translation for.
+        As a set, it is not ordered, use :func:`sorted` built-in function to
+        get a specific order.
+
+        If translations have been cached by :meth:`prefetch` or
+        :meth:`~django.db.models.query.QuerySet.prefetch_related`, the cache is
+        used. Otherwise, a database query is run, and the result is **not** cached.
 
 **********************
 Working with relations
 **********************
 
 Foreign keys pointing to a :term:`Translated Model` always point to the
-:term:`Shared Model`. It is not possible to have a foreign key to a
+:term:`Shared Model`. It is, by design, not possible to have a foreign key to a
 :term:`Translations Model`.
 
 Please note that :meth:`~django.db.models.query.QuerySet.select_related` used on
@@ -172,7 +194,7 @@ translatable fields will be translatable on the concrete model as well::
     class Place(TranslatableModel):
         coordinates = models.CharField(max_length=64)
         translations = TranslatedFields(
-            name = models.CharField(max_length=255),
+            name=models.CharField(max_length=255),
         )
         class Meta:
             abstract = True
@@ -219,16 +241,14 @@ Custom Manager
 Vanilla :class:`managers <django.db.models.Manager>`, using vanilla
 :class:`querysets <django.db.models.query.QuerySet>` can be used with translatable
 models. However, they will not have access to translations or translatable fields.
-Also, such a vanilla manager cannot server as a
+Also, such a vanilla manager cannot serve as a
 :djterm:`default manager <default managers>` for the model. The default manager
 **must** be translation aware.
 
 To have full access to translations and translatable fields, custom managers
 must inherit :class:`~hvad.manager.TranslationManager` and custom querysets
 must inherit either :class:`~hvad.manager.TranslationQueryset` (enabling the
-use of :meth:`~hvad.manager.TranslationQueryset.language`) or
-:class:`~hvad.manager.FallbackQueryset` (enabling the use of
-:meth:`~hvad.manager.FallbackQueryset.use_fallbacks`). Both are described in the
+use of :meth:`~hvad.manager.TranslationQueryset.language`). It is described in the
 :doc:`dedicated section <queryset>`.
 
 Custom Querysets
@@ -241,16 +261,16 @@ can be overriden independently:
 
 - :attr:`~hvad.manager.TranslationManager.queryset_class` must inherit
   :class:`~hvad.manager.TranslationQueryset`, and will be used for all queries
-  that call the :meth:`language() <hvad.manager.TranslationManager.language>` method.
-- :attr:`~hvad.manager.TranslationManager.fallback_class` must inherit
-  :class:`~hvad.manager.FallbackQueryset`, and will be used for all queries
-  that call the :meth:`untranslated() <hvad.manager.TranslationManager.untranslated>`
+  that call the :meth:`~hvad.manager.TranslationManager.language` method.
+- :attr:`~hvad.manager.TranslationManager.fallback_class` must **not** inherit
+  :class:`~hvad.manager.TranslationQueryset`, and will be used for all queries
+  that call the :meth:`~hvad.manager.TranslationManager.untranslated`
   method.
 - :attr:`~hvad.manager.TranslationManager.default_class` may be any kind of
-  queryset (a ``TranslationQueryset``, a ``FallbackQueryset`` or a plain
+  queryset (a ``TranslationQueryset`` or a plain
   :class:`~django.db.models.query.QuerySet`). It will be used for all queries
-  that call neither ``language`` nor ``untranslated``. It defaults to being a
-  regular, translation-unaware ``QuerySet`` for compatibility, see next section
+  that call neither ``language`` nor ``untranslated``. Its default depends on
+  the :ref:`USE_DEFAULT_QUERYSET <settings>` setting; see next section
   about overriding it.
 
 As a convenience, it is possible to override the queryset at manager instanciation,
@@ -285,14 +305,14 @@ to set it to be translation-aware by overriding it::
 This deeply changes key behaviors of the manager, with many benefits:
 
 - The call to ``language()`` can be omitted, filtering on translations is
-  implied in all queries. It is still possible to use it to set another language
-  on the queryset.
+  implied in all queries that do not call ``untranslated()``.
+  It is still possible to use it to set another language on the queryset.
 - As a consequence, all third-party modules will only see objects in current
   language, unless they are hvad-aware.
 - They will also gain access to translated fields.
 - Queries that use :meth:`~django.db.models.query.QuerySet.prefetch_related` will
   prefetch the translation as well (in current language).
-- Acessing a translatable model from a :class:`~django.db.models.ForeignKey` or a
+- Accessing a translatable model from a :class:`~django.db.models.ForeignKey` or a
   :class:`~django.contrib.contenttypes.fields.GenericForeignKey` will also load
   and cache the translation in current language.
 
@@ -328,8 +348,8 @@ model methods, for instance :meth:`~django.db.models.Model.from_db`::
 
     class Book(TranslatableModel):
         translations = TranslatedFields(
-            base_class = BookTranslation,
-            name = models.CharField(max_length=255),
+            base_class=BookTranslation,
+            name=models.CharField(max_length=255),
         )
 
 In this example, the ``Book``'s translation model will have ``BookTranslation`` as its

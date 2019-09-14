@@ -1,3 +1,6 @@
+""" Translatable administration for use with django.contrib.admin
+    Part of hvad public API.
+"""
 import functools
 import warnings
 import django
@@ -5,10 +8,7 @@ from django.contrib.admin.options import ModelAdmin, csrf_protect_m, InlineModel
 from django.contrib.admin.utils import flatten_fieldsets, unquote, get_deleted_objects
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
-if django.VERSION >= (1, 10):
-    from django.urls import reverse
-else:
-    from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.db import router, transaction
 from django.forms.models import model_to_dict
 from django.forms.utils import ErrorList
@@ -19,7 +19,7 @@ from django.template.loader import select_template
 from django.utils.encoding import iri_to_uri, force_text
 from django.utils.functional import curry
 from django.utils.translation import ugettext_lazy as _, get_language, get_language_info
-from hvad.compat import urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 from hvad.forms import TranslatableModelForm, translatable_inlineformset_factory, translatable_modelform_factory
 from hvad.settings import hvad_settings
 from hvad.utils import load_translation
@@ -33,6 +33,7 @@ __all__ = (
     'InlineModelForm',
 )
 
+#===============================================================================
 
 class InlineModelForm(TranslatableModelForm):
     def __init__(self, data=None, files=None, auto_id='id_%s', prefix=None,
@@ -59,6 +60,7 @@ class InlineModelForm(TranslatableModelForm):
                                                      error_class, label_suffix,
                                                      empty_permitted, instance, **kwargs)
 
+#===============================================================================
 
 class TranslatableModelAdminMixin(object):
     query_language_key = 'language'
@@ -70,7 +72,7 @@ class TranslatableModelAdminMixin(object):
 
         languages = []
         current_language = get_language()
-        for language in obj.get_available_languages():
+        for language in getattr(obj, obj._meta.translations_accessor).all_languages():
             entry = u'<a href="%s">%s</a>' % (self.get_url(obj, lang=language), language)
             if language == current_language:
                 entry = u'<strong>%s</strong>' % entry
@@ -78,13 +80,6 @@ class TranslatableModelAdminMixin(object):
         return u', '.join(languages)
     all_translations.allow_tags = True
     all_translations.short_description = _(u'all translations')
-
-    def get_available_languages(self, obj):
-        # remove in 1.9
-        raise NotImplementedError(
-            'admin.get_available_languages is obsolete and has been removed. '
-            'Invoke the instance\'s get_available_languages() method directly.'
-        )
 
     def get_language_tabs(self, obj, request, available_languages):
         info = None if obj is None else (obj._meta.app_label, obj._meta.model_name)
@@ -108,6 +103,7 @@ class TranslatableModelAdminMixin(object):
     def _language(self, request):
         return request.GET.get(self.query_language_key, get_language())
 
+#===============================================================================
 
 class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
     form = TranslatableModelForm
@@ -140,7 +136,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 name='%s_%s_delete_translation' % info),
         ] + urlpatterns
 
-    def get_form(self, request, obj=None, **kwargs):
+    def get_form(self, request, obj=None, change=False, **kwargs):
         """
         Returns a Form class for use in the admin add view. This is used by
         add_view and change_view.
@@ -175,7 +171,8 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                            form_url='', obj=None):
         lang_code = self._language(request)
         lang = get_language_info(lang_code)['name_local']
-        available_languages = [] if obj is None else obj.get_available_languages()
+        available_languages = ([] if obj is None else
+                               getattr(obj, obj._meta.translations_accessor).all_languages())
 
         context.update({
             'title': '%s (%s)' % (context['title'], lang),
@@ -228,7 +225,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         if not self.has_delete_permission(request, obj):
             raise PermissionDenied
 
-        if len(obj.master.get_available_languages()) <= 1:
+        if len(obj.master.translations.all_languages()) <= 1:
             return self.deletion_not_allowed(request, obj, language_code)
 
         using = router.db_for_write(translations_model)
@@ -237,9 +234,9 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         # will also be deleted.
 
         protected = False
-        if django.VERSION >= (2, 2):
+        if django.VERSION >= (2, 1):
             deleted_objects, model_count, perms_needed, protected = get_deleted_objects(
-                            [obj], request.user, self.admin_site)
+                [obj], request, self.admin_site)
         else:
             deleted_objects, model_count, perms_needed, protected = get_deleted_objects(
                 [obj], translations_model._meta, request.user, self.admin_site, using)
@@ -309,18 +306,16 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
 
     def get_object(self, request, object_id, from_field=None):
         queryset = self.get_queryset(request)
-        if isinstance(queryset, TranslationQueryset): # will always be true once Django 1.9 is required
-            model = queryset.shared_model
-            if from_field is None:
-                field = model._meta.pk
-            else:
-                try:
-                    field = model._meta.get_field(from_field)
-                except FieldDoesNotExist:
-                    field = model._meta.translations_model._meta.get_field(from_field)
+        assert isinstance(queryset, TranslationQueryset)
+        model = queryset.shared_model
+        if from_field is None:
+            field = model._meta.pk
         else:
-            model = queryset.model
-            field = model._meta.pk if from_field is None else model._meta.get_field(from_field)
+            try:
+                field = model._meta.get_field(from_field)
+            except FieldDoesNotExist:
+                field = model._meta.translations_model._meta.get_field(from_field)
+
         try:
             object_id = field.to_python(object_id)
             obj = queryset.get(**{field.name: object_id})
@@ -365,6 +360,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         except TemplateDoesNotExist: #pragma: no cover
             return None
 
+#===============================================================================
 
 class TranslatableInlineModelAdmin(InlineModelAdmin, TranslatableModelAdminMixin):
     form = InlineModelForm
@@ -453,6 +449,8 @@ class TranslatableInlineModelAdmin(InlineModelAdmin, TranslatableModelAdminMixin
         if ordering:
             qs = qs.order_by(*ordering)
         return qs
+
+#===============================================================================
 
 class TranslatableStackedInline(TranslatableInlineModelAdmin):
     template = 'admin/hvad/edit_inline/stacked.html'

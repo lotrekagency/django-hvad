@@ -4,8 +4,12 @@
 
 .. module:: hvad.models
 
-.. function:: prepare_translatable_model(sender)
+.. data:: NoTranslation
 
+    A special value used with :meth:`~hvad.models.TranslatableModel.__init__`
+    to prevent automatic creation of a translation.
+
+.. function:: prepare_translatable_model(sender)
     Gets called from :class:`~django.db.models.Model` after Django has
     completed its setup. It customizes model creation for translations.
     Most notably, it performs checks, overrides ``_meta`` methods and defines
@@ -20,7 +24,7 @@ TranslatedFields
 
     A wrapper for the translated fields which is set onto
     :class:`TranslatableModel` subclasses to define what fields are translated.
-    
+
     .. method:: contribute_to_class(self, cls, name)
 
         Invoked by Django while setting up a model that defines translated fields.
@@ -91,7 +95,7 @@ BaseTranslationModel
 
 
 ******************
-TranslatableModel        
+TranslatableModel
 ******************
 
 .. class:: TranslatableModel
@@ -99,49 +103,78 @@ TranslatableModel
     A model which has translated fields on it. Must define one and exactly one
     attribute which is an instance of :class:`TranslatedFields`. This model is
     abstract.
-    
+
     If initalized with data, it splits the shared and translated fields and
     prepopulates both the :term:`Shared Model` and the
     :term:`Translations Model`. If no *language_code* is given,
     :func:`~django.utils.translation.get_language` is used to get the language
     for the :term:`Translations Model` instance that gets initialized.
-    
+
     .. note:: When initializing a :class:`TranslatableModel`, positional
               arguments are only supported for the shared fields.
 
-    .. attribute:: objects
-    
-        An instance of :class:`hvad.manager.TranslationManager`.
-    
+    .. method:: __init__(self, *args, **kwargs)
+
+        Initializes the instance. Keyword arguments are split into translated
+        and untranslated fields. Untranslated fields are passed to
+        :class:`superclass <django.db.models.Model>`,
+        while translated fields are passed to a newly-initializeded
+        :term:`Translations Model` instance.
+
+        Passing special value :data:`~hvad.models.NoTranslation` as ``language_code``
+        skips initialization of the translation instance, leaving no translation
+        loaded in the cache. Mainly useful to prevent double initialization
+        in :meth:`~hvad.models.TranslatableModel.from_db`.
+
+    .. method:: from_db(cls, db, field_names, values)
+
+        Initializes a model instance from database-read field values. Overriden
+        so it can pass ``NoTranslation`` to
+        :meth:`~hvad.models.TranslatableModel.__init__`, avoiding double initialization
+        of the :term:`Translations Model` instance.
+
+    .. method:: save(self, *args, **kwargs)
+
+        Saves the mode instance into the database. If ``update_fields`` is given,
+        specified fields are split into translatable and untranslatable fields
+        and passed to the appropriate ``save`` methods. In case ``update_fields``
+        is specified and has only translatable or only untranslatable fields,
+        only the :term:`Translations Model` or :term:`Shared Model` is saved.
+
+        Saving is done in a transaction.
+
     .. method:: translate(self, language_code)
-    
-        Initializes a new instance of the :term:`Translations Model` (does not
-        check the database if one for the language given already exists) and
-        sets it as cached translation. Used by end users to translate instances
+
+        Initializes a new instance of the :term:`Translations Model`.
+        Inconditionnaly creates the new translation, without checking whether
+        it exists in the database or in the translations cache. Sets the new
+        translation as cached translation. Used by end users to translate instances
         of a model.
-    
-    .. method:: safe_translation_getter(self, name, default=None)
-    
-        Helper method to safely get a field from the :term:`Translations Model`.
 
-        Returns value of translated field ``name``, unless no translation is
-        loaded, or loaded translation doesn't have field ``name``. In both
-        cases, it will return ``default``, performing no database query.
-        
-    .. method:: lazy_translation_getter(self, name, default=None)
+    .. method:: clean_fields(self, exclude=None)
 
-        Helper method to get the cached translation, and in the case the cache
-        for some reason doesnt exist, it gets it from the database.
+        Validate the content of model fields. Overrides
+        :meth:`superclass's clean_fields <django.db.models.Model.clean_fields>` to
+        propagate the call to the :term:`Translations Model` as well, if one is
+        currently cached.
 
-        .. note:: Use is discouraged on production code paths. It is mostly
-                  intended as a helper method for introspection.
-    
-    .. method:: get_available_languages(self)
-    
-        Returns a list of language codes in which this instance is available.
-        Uses cached values if available (eg if object was loaded with
-        ``.prefetch_related('translations')``), otherwise performs a
-        database query.
+    .. method:: validate_unique(self, exclude=None)
+
+        Validate values of model fields marked as unique. Overrides
+        :meth:`superclass's clean_fields <django.db.models.Model.validate_unique>` to
+        propagate the call to the :term:`Translations Model` as well, if one is
+        currently cached.
+
+    .. attribute:: objects
+
+        An instance of :class:`hvad.manager.TranslationManager`.
+
+    .. method:: check(cls, **kwargs)
+
+        Extend model checks to add hvad-specific checks, namely:
+
+            * That translatable and untranslatable fields have different names.
+            * That the default manager is translation-aware.
 
 Extra information on _meta of Shared Models
 ===========================================

@@ -1,3 +1,10 @@
+""" Translatable-model-aware serializers for use with django-rest-framework
+    Extension to hvad public API.
+
+    TranslationsMixin                       - Add nested translations in a serializer
+    TranslatableModelSerializer             - Serializer that handles translatable fields
+    HyperlinkedTranslatableModelSerializer  - Hyperlinked serializer that handles translatable fields
+"""
 from django.db.models.fields import FieldDoesNotExist
 from django.utils.translation import get_language, ugettext_lazy as _
 from rest_framework import serializers
@@ -47,10 +54,12 @@ class TranslationsMixin(object):
 
     # Add the translations accessor to default serializer fields
     def get_default_field_names(self, *args):
-        return (
-            super(TranslationsMixin, self).get_default_field_names(*args)
-            + [self.Meta.model._meta.translations_accessor]
-        )
+        names = super(TranslationsMixin, self).get_default_field_names(*args)
+        query_name = '_hvad_query'
+        if query_name in names:
+            names.remove(query_name)
+        names.append(self.Meta.model._meta.translations_accessor)
+        return names
 
     def build_field(self, field_name, info, model_class, nested_depth):
         # Special handling for translations field so it is nested and not relational
@@ -172,12 +181,13 @@ class TranslatableModelMixin(object):
 
     def get_default_field_names(self, *args):
         # Add translated fields into default field names
-        return (
-            super(TranslatableModelMixin, self).get_default_field_names(*args)
-            + list(field.name
-                   for field in self.Meta.model._meta.translations_model._meta.fields
-                   if field.serialize and not field.name in veto_fields)
-        )
+        names = super(TranslatableModelMixin, self).get_default_field_names(*args)
+        query_name = '_hvad_query'
+        if query_name in names:
+            names.remove(query_name)
+        names.extend(field.name for field in self.Meta.model._meta.translations_model._meta.fields
+                     if field.serialize and not field.name in veto_fields)
+        return names
 
     def get_uniqueness_extra_kwargs(self, field_names, declared_fields, *args):
         # Default implementation chokes on translated fields, filter them out
@@ -258,8 +268,10 @@ class TranslatableModelMixin(object):
 #=============================================================================
 
 class TranslatableModelSerializer(TranslatableModelMixin, serializers.ModelSerializer):
+    'Serializer that handles translatable fields'
     pass
 
 class HyperlinkedTranslatableModelSerializer(TranslatableModelMixin,
                                              serializers.HyperlinkedModelSerializer):
+    'HyperlinkedSerializer that handles translatable fields'
     pass
