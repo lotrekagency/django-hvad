@@ -385,10 +385,14 @@ class TranslationQueryset(QuerySet):
                                      'Use prefetch_related instead.' % query_key)
                 if term.target is None:
                     raise FieldError('Cannot select_related: %s is a regular field' % query_key)
-                if hasattr(term.field.rel, 'through'):
-                    raise FieldError('Cannot select_related: %s can be multiple objects. '
+                if django.VERSION >= (2, 2):
+                    if hasattr(term.field.remote_field, 'through'):
+                        raise FieldError('Cannot select_related: %s can be multiple objects. '
                                      'Use prefetch_related instead.' % query_key)
-
+                else:
+                    if hasattr(term.field.rel, 'through'):
+                                        raise FieldError('Cannot select_related: %s can be multiple objects. '
+                                                    'Use prefetch_related instead.' % query_key)
                 # If target is a translated model, select its translations
                 target_translations = getattr(term.target._meta, 'translations_accessor', None)
                 if target_translations is not None:
@@ -471,6 +475,7 @@ class TranslationQueryset(QuerySet):
 
         # First, set translation for current object,
         accessor = getattr(obj._meta, 'translations_accessor', None)
+        print (accessor)
         if accessor is not None:
             if django.VERSION >= (1, 9):
                 cache = getattr(obj.__class__, accessor).rel.get_cache_name()
@@ -998,9 +1003,9 @@ class TranslationAwareQueryset(QuerySet):
         clone = super(TranslationAwareQueryset, self)._clone(**kwargs)
 
         clone._language_code = self._language_code
-        
+
         return clone
-        
+
     def _filter_extra(self, extra_filters):
         if extra_filters.children:
             qs = self._next_is_sticky()
