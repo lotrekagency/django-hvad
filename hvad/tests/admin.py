@@ -317,6 +317,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
                     expected_dict = QueryDict(query_string)
                     full_url = '%s?%s' % (url, query_string) if query_string else url
                     response = self.client.get(full_url)
+                    print (response.context['form_url'])
                     form_url = urlparse(response.context['form_url'])
                     self.assertEqual(expected_dict, QueryDict(form_url.query),
                                      'query_string=%r' % query_string)
@@ -332,7 +333,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
                     'translated_field': 'English NEW',
                     'shared_field': NORMAL[1].shared_field,
                     '_addanother': '1',
-                    
+
                     'simplerel-TOTAL_FORMS': '0',
                     'simplerel-INITIAL_FORMS': '0',
                     'simplerel-MAX_NUM_FORMS': '0',
@@ -344,7 +345,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
                 self.assertTrue(response['Location'].endswith(expected_url))
                 obj = Normal.objects.language('en').get(pk=self.normal_id[1])
                 self.assertEqual(obj.translated_field, "English NEW")
-    
+
     def test_admin_change_form_redirect_continue_edit(self):
         lang = 'en'
         with translation.override('ja'):
@@ -539,25 +540,25 @@ class AdminNoFixturesTests(HvadTestCase, BaseAdminTests):
         if hasattr(template, 'template'):
             template = template.template
         self.assertEqual(template.name, 'admin/change_form.html')
-        
+
     def test_translatable_modelform_factory(self):
         t = translatable_modelform_factory('en', Normal, fields=['shared_field'], exclude=['id'])
         self.assertCountEqual(t.Meta.fields, ['shared_field'])
         self.assertCountEqual(t.Meta.exclude, ['id', 'translations'])
-        
+
         t = translatable_modelform_factory('en', Normal, fields=['shared_field'], exclude=['id'])
         self.assertCountEqual(t.Meta.fields, ['shared_field'])
         self.assertCountEqual(t.Meta.exclude, ['id', 'translations'])
-        
+
         class TestForm(TranslatableModelForm):
             class Meta:
-                fields = ['shared_field'] 
+                fields = ['shared_field']
                 exclude = ['id']
-               
+
         t = translatable_modelform_factory('en', Normal, form=TestForm)
         self.assertCountEqual(t.Meta.fields, ['shared_field'])
         self.assertCountEqual(t.Meta.exclude, ['id', 'translations'])
-        
+
 
 class AdminRelationTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture):
     normal_count = 1
@@ -583,7 +584,7 @@ class AdminRelationTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixtu
 
     def test_adding_related_object(self):
         url = reverse('admin:app_simplerelated_add')
-        TRANS_FIELD = "English Content" 
+        TRANS_FIELD = "English Content"
         with translation.override('en'):
             en = Normal.objects.get(pk=self.normal_id[1])
             with self.login_user_context('admin'):
