@@ -317,7 +317,6 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
                     expected_dict = QueryDict(query_string)
                     full_url = '%s?%s' % (url, query_string) if query_string else url
                     response = self.client.get(full_url)
-                    print (response.context['form_url'])
                     form_url = urlparse(response.context['form_url'])
                     self.assertEqual(expected_dict, QueryDict(form_url.query),
                                      'query_string=%r' % query_string)
