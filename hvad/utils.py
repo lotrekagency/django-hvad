@@ -25,7 +25,7 @@ def translation_rater(*languages):
     """
     if not languages:
         languages = (get_language(), hvad_settings.DEFAULT_LANGUAGE) + hvad_settings.FALLBACK_LANGUAGES
-    score_dict = dict((code, idx) for idx, code in enumerate(languages[::-1], 1))
+    score_dict = {code: idx for idx, code in enumerate(languages[::-1], 1)}
     return lambda translation: score_dict.get(translation.language_code, -1)
 
 def get_translation_aware_manager(model):
@@ -79,7 +79,7 @@ def get_translation(instance, language_code=None):
         for obj in qs:
             if obj.language_code == language_code:
                 return obj
-        raise accessor.model.DoesNotExist('%r is not translated in %r' % (instance, language_code))
+        raise accessor.model.DoesNotExist('{!r} is not translated in {!r}'.format(instance, language_code))
     return accessor.get(language_code=language_code)
 
 def load_translation(instance, language, enforce=False):
@@ -105,7 +105,7 @@ def load_translation(instance, language, enforce=False):
 
 #=============================================================================
 
-class SmartGetField(object):
+class SmartGetField:
     ''' Smart get_field that raises a helpful exception on get_field() '''
     def __init__(self, real):
         assert not isinstance(real, SmartGetField)
@@ -125,7 +125,7 @@ class SmartGetField(object):
 #=============================================================================
 # Internal sugar
 
-class _MinimumDjangoVersionDescriptor(object): #pragma: no cover
+class _MinimumDjangoVersionDescriptor: #pragma: no cover
     ''' Ensures methods that do not exist on current Django version raise a
         helpful message and an actual AttributeError
     '''

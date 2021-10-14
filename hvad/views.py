@@ -40,11 +40,11 @@ class TranslatableModelFormMixin(ModelFormMixin):
 class TranslatableBaseCreateView(TranslatableModelFormMixin, ProcessFormView):
     def get(self, request, *args, **kwargs):
         self.object = None
-        return super(TranslatableBaseCreateView, self).get(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         self.object = None
-        return super(TranslatableBaseCreateView, self).post(request, *args, **kwargs)
+        return super().post(request, *args, **kwargs)
 
 class TranslatableCreateView(SingleObjectTemplateResponseMixin, TranslatableBaseCreateView):
     template_name_suffix = '_form'
@@ -54,11 +54,11 @@ class TranslatableCreateView(SingleObjectTemplateResponseMixin, TranslatableBase
 class TranslatableBaseUpdateView(TranslatableModelFormMixin, ProcessFormView):
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
-        return super(TranslatableBaseUpdateView, self).get(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        return super(TranslatableBaseUpdateView, self).post(request, *args, **kwargs)
+        return super().post(request, *args, **kwargs)
 
 class TranslatableUpdateView(SingleObjectTemplateResponseMixin, TranslatableBaseUpdateView):
     template_name_suffix = '_form'

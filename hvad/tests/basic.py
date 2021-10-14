@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import with_statement
 import django
 from django.apps import apps
 from django.core import checks
@@ -955,11 +953,11 @@ class GetOrCreateTest(HvadTestCase):
             """
             ja, created = Normal.objects.language('ja').get_or_create(
                 shared_field="shared",
-                defaults={'translated_field': u'日本語',},
+                defaults={'translated_field': '日本語',},
             )
         self.assertTrue(created)
         self.assertEqual(ja.shared_field, "shared")
-        self.assertEqual(ja.translated_field, u'日本語')
+        self.assertEqual(ja.translated_field, '日本語')
         self.assertEqual(ja.language_code, "ja")
         self.assertNotEqual(en.pk, ja.pk)
 
@@ -1011,11 +1009,11 @@ class GetOrCreateTest(HvadTestCase):
         )
         ja, created = Normal.objects.language('ja').get_or_create(
             shared_field="shared",
-            translated_field=u'日本語',
+            translated_field='日本語',
         )
         self.assertTrue(created)
         self.assertEqual(ja.shared_field, "shared")
-        self.assertEqual(ja.translated_field, u'日本語')
+        self.assertEqual(ja.translated_field, '日本語')
         self.assertEqual(ja.language_code, "ja")
         self.assertNotEqual(en.pk, ja.pk)
 
@@ -1044,17 +1042,17 @@ class GetOrCreateTest(HvadTestCase):
         )
         ja, created = MultipleFields.objects.language('ja').get_or_create(
             first_shared_field="shared-one",
-            first_translated_field=u'日本語-一',
+            first_translated_field='日本語-一',
             defaults={
                 'second_shared_field': 'x-shared-two',
-                'second_translated_field': u'日本語-二',
+                'second_translated_field': '日本語-二',
             }
         )
         self.assertTrue(created)
         self.assertEqual(ja.first_shared_field, "shared-one")
         #self.assertEqual(ja.second_shared_field, "shared-two")
-        self.assertEqual(ja.first_translated_field, u'日本語-一')
-        self.assertEqual(ja.second_translated_field,  u'日本語-二')
+        self.assertEqual(ja.first_translated_field, '日本語-一')
+        self.assertEqual(ja.second_translated_field,  '日本語-二')
         self.assertEqual(ja.language_code, "ja")
         self.assertNotEqual(en.pk, ja.pk)
 

@@ -441,7 +441,7 @@ class SelectRelatedTests(HvadTestCase, NormalFixture):
     normal_count = 2
 
     def create_fixtures(self):
-        super(SelectRelatedTests, self).create_fixtures()
+        super().create_fixtures()
         with translation.override('en'):
             self.normal1 = Normal.objects.language().get(pk=self.normal_id[1])
             self.normal2 = Normal.objects.language().get(pk=self.normal_id[2])
@@ -547,7 +547,7 @@ class DeepSelectRelatedTests(HvadTestCase, StandardFixture, NormalFixture):
     standard_count = 1
 
     def create_fixtures(self):
-        super(DeepSelectRelatedTests, self).create_fixtures()
+        super().create_fixtures()
         with translation.override('en'):
             self.normal1 = Normal.objects.language().get(pk=self.normal_id[1])
             self.normal2 = Normal.objects.language().get(pk=self.normal_id[2])

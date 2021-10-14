@@ -27,7 +27,7 @@ class FallbacksConstraint(Expression):
         self.lha = lha
         self.rha = rha
         self.fallbacks = fallbacks
-        super(FallbacksConstraint, self).__init__()
+        super().__init__()
 
     def as_sql(self, compiler, connection):
         """ Build SQL for constraint """
@@ -48,7 +48,7 @@ class FallbacksConstraint(Expression):
         )).format(lha=quote(self.lha), rha=quote(self.rha)), [])
 
 
-class BetterTranslationsField(object):
+class BetterTranslationsField:
     """ Abstract field used to inject a self-JOIN for computing fallbacks """
 
     def __init__(self, translation_fallbacks, master):
@@ -83,7 +83,7 @@ class LanguageConstraint(Expression):
         """ Setup the LanguageConstraint to filter on given language_code column """
         assert col.target.column == 'language_code'
         self.col = col
-        super(LanguageConstraint, self).__init__()
+        super().__init__()
 
     def as_sql(self, compiler, connection):
         """ Generate SQL for the language constraint.
@@ -101,7 +101,7 @@ class LanguageConstraint(Expression):
         col_sql, col_params = self.col.as_sql(compiler, connection)
         val_sql, val_params = value.as_sql(compiler, connection)
         return (
-            '%s = %s' % (col_sql, val_sql),
+            '{} = {}'.format(col_sql, val_sql),
             col_params + val_params
         )
 
@@ -119,7 +119,7 @@ class SingleTranslationObject(ForeignObject):
         self.shared_model = model
         if translations_model is None:
             translations_model = model._meta.translations_model
-        super(SingleTranslationObject, self).__init__(
+        super().__init__(
             translations_model,
             from_fields=['id'], to_fields=['master'],
             null=True,
@@ -140,19 +140,19 @@ class SingleTranslationObject(ForeignObject):
 
     def get_path_info(self, filtered_relation=None):
         """ Mark the field as indirect so most Django automation ignores it """
-        path = super(SingleTranslationObject, self).get_path_info(filtered_relation)
+        path = super().get_path_info(filtered_relation)
         return [path[0]._replace(direct=False)]
 
     def contribute_to_class(self, cls, name, private_only=False):
         """ Prevent the field from appearing into the class, we only want it in queries """
-        super(SingleTranslationObject, self).contribute_to_class(cls, name, False)
+        super().contribute_to_class(cls, name, False)
         delattr(cls, self.name)
 
     def deconstruct(self):
         """ Let the field work nicely with migrations """
-        name, path, args, kwargs = super(SingleTranslationObject, self).deconstruct()
+        name, path, args, kwargs = super().deconstruct()
         args = (
-            "%s.%s" % (self.shared_model._meta.app_label,
+            "{}.{}".format(self.shared_model._meta.app_label,
                        self.shared_model._meta.object_name),
             kwargs['to'],
         )
@@ -168,7 +168,7 @@ class TranslationsAccessor(ReverseManyToOneDescriptor):
     """
     @cached_property
     def related_manager_cls(self):
-        cls = super(TranslationsAccessor, self).related_manager_cls
+        cls = super().related_manager_cls
         class RelatedManager(cls):
             """ Manager for translations, used by the translation accessor """
 
@@ -243,7 +243,7 @@ class TranslationsAccessor(ReverseManyToOneDescriptor):
                 """
                 qs = self.all()
                 if qs._result_cache is not None:
-                    return set(obj.language_code for obj in qs)
+                    return {obj.language_code for obj in qs}
                 return set(qs.values_list('language_code', flat=True))
 
         return RelatedManager

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.utils import translation
 from unittest import skip
 from hvad.test_utils.data import QONORMAL
@@ -79,7 +78,7 @@ class RelatedManagerTests(HvadTestCase, QONormalFixture):
     qonormal_count = 2
 
     def setUp(self):
-        super(RelatedManagerTests, self).setUp()
+        super().setUp()
         with translation.override('en'):
             self.normal1 = QONormal.objects.get(shared_field=QONORMAL[1].shared_field)
             self.normal2 = QONormal.objects.get(shared_field=QONORMAL[2].shared_field)
@@ -205,7 +204,7 @@ class PrefetchRelatedTests(HvadTestCase, QONormalFixture):
     qonormal_count = 2
 
     def setUp(self):
-        super(PrefetchRelatedTests, self).setUp()
+        super().setUp()
         with translation.override('en'):
             self.normal1 = QONormal.objects.get(shared_field=QONORMAL[1].shared_field)
             self.normal2 = QONormal.objects.get(shared_field=QONORMAL[2].shared_field)

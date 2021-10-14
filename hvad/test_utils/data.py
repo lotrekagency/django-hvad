@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from datetime import datetime
 from collections import namedtuple
 
@@ -16,12 +15,12 @@ NormalData = namedtuple('NormalData', 'shared_field translated_field')
 
 NORMAL = {
     1: NormalData(
-        shared_field=u'Shared1',
-        translated_field={'en': u'English1', 'ja': u'日本語一',},
+        shared_field='Shared1',
+        translated_field={'en': 'English1', 'ja': '日本語一',},
     ),
     2: NormalData(
-        shared_field=u'Shared2',
-        translated_field={'en': u'English2', 'ja': u'日本語二',},
+        shared_field='Shared2',
+        translated_field={'en': 'English2', 'ja': '日本語二',},
     ),
 }
 
@@ -32,10 +31,10 @@ QONORMAL = NORMAL
 StandardData = namedtuple('StandardData', 'normal_field normal')
 
 STANDARD = {
-    1: StandardData(normal_field=u'normal1', normal=1),
-    2: StandardData(normal_field=u'normal2', normal=2),
-    3: StandardData(normal_field=u'normal3', normal=1),
-    4: StandardData(normal_field=u'normal4', normal=2),
+    1: StandardData(normal_field='normal1', normal=1),
+    2: StandardData(normal_field='normal2', normal=2),
+    3: StandardData(normal_field='normal3', normal=1),
+    4: StandardData(normal_field='normal4', normal=2),
 }
 
 #===============================================================================
@@ -46,20 +45,20 @@ ConcreteABData = namedtuple('ConcreteABData',
 
 CONCRETEAB = {
     1: ConcreteABData(
-        shared_field_a=u'SharedA1',
+        shared_field_a='SharedA1',
         shared_field_b=1,
-        shared_field_ab=u'SharedAB1',
+        shared_field_ab='SharedAB1',
         translated_field_a={'en': 1, 'ja': 2,},
-        translated_field_b={'en': u'EnglishB1', 'ja': u'日本語一',},
-        translated_field_ab={'en': u'EnglishAB1', 'ja': u'日本語一',},
+        translated_field_b={'en': 'EnglishB1', 'ja': '日本語一',},
+        translated_field_ab={'en': 'EnglishAB1', 'ja': '日本語一',},
     ),
     2: ConcreteABData(
-        shared_field_a=u'SharedA2',
+        shared_field_a='SharedA2',
         shared_field_b=2,
-        shared_field_ab=u'SharedAB2',
+        shared_field_ab='SharedAB2',
         translated_field_a={'en': 2, 'ja': 1,},
-        translated_field_b={'en': u'EnglishB2', 'ja': u'日本語二',},
-        translated_field_ab={'en': u'EnglishAB2', 'ja': u'日本語二',},
+        translated_field_b={'en': 'EnglishB2', 'ja': '日本語二',},
+        translated_field_ab={'en': 'EnglishAB2', 'ja': '日本語二',},
     ),
 }
 

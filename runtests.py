@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 import django
 from django.conf import settings
 from django.core import checks
@@ -21,8 +20,8 @@ CONFIGURATION = {
     'USE_I18N': True,
     'LANGUAGE_CODE': 'en',
     'LANGUAGES': (
-        ('en', u'English'),
-        ('ja', u'日本語'),
+        ('en', 'English'),
+        ('ja', '日本語'),
     ),
     'SECRET_KEY': 'dummy',
     'ROOT_URLCONF': 'hvad.test_utils.project.urls',

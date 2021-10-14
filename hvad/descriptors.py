@@ -10,7 +10,7 @@ __all__ = ()
 
 #===============================================================================
 
-class TranslatedAttribute(object):
+class TranslatedAttribute:
     """ Proxy descriptor, forwarding attribute access to loaded translation.
         If no translation is loaded, it will attempt to load one depending on settings
     """
@@ -23,7 +23,7 @@ class TranslatedAttribute(object):
         self._NoTranslationError = type('NoTranslationError',
                                         (AttributeError, model._meta.translations_model.DoesNotExist),
                                         {})
-        super(TranslatedAttribute, self).__init__()
+        super().__init__()
 
     def load_translation(self, instance):
         """ Load a translation for instance, if the those conditions are met:
@@ -72,7 +72,7 @@ class TranslatedAttribute(object):
 
 #===============================================================================
 
-class LanguageCodeAttribute(object):
+class LanguageCodeAttribute:
     """
     The language_code attribute is different from other attribtues as:
         - it cannot be set nor deleted. Trying to do so raises an attribute error.
@@ -81,7 +81,7 @@ class LanguageCodeAttribute(object):
     def __init__(self, model, query_field):
         self.translations_model = model._meta.translations_model
         self.query_field = query_field
-        super(LanguageCodeAttribute, self).__init__()
+        super().__init__()
 
     def __get__(self, instance, instance_type=None):
         if not instance:

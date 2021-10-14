@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.forms import ModelForm
 from django.utils import translation
 from hvad.admin import TranslatableModelAdminMixin

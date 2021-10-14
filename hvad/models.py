@@ -27,7 +27,7 @@ NoTranslation = object()
 
 #===============================================================================
 
-class TranslatedFields(object):
+class TranslatedFields:
     """ Wrapper class to define translated fields on a model. """
 
     def __init__(self, meta=None, base_class=None, **fields):
@@ -180,7 +180,7 @@ class BaseTranslationModel(models.Model):
         # Due to the way translations are handled, checking for unicity of
         # the ('language_code', 'master') constraint is useless. We filter it out
         # here so as to avoid a useless query
-        unique_checks, date_checks = super(BaseTranslationModel, self)._get_unique_checks(exclude=exclude)
+        unique_checks, date_checks = super()._get_unique_checks(exclude=exclude)
         unique_checks = [check for check in unique_checks
                          if check != (self.__class__, ('language_code', 'master'))]
         return unique_checks, date_checks
@@ -216,7 +216,7 @@ class TranslatableModel(models.Model):
                     skwargs[key] = value
                 else:
                     tkwargs[key] = value
-        super(TranslatableModel, self).__init__(*args, **skwargs)
+        super().__init__(*args, **skwargs)
         language_code = tkwargs.get('language_code') or get_language()
         if language_code is not NoTranslation:
             tkwargs['language_code'] = language_code
@@ -261,7 +261,7 @@ class TranslatableModel(models.Model):
         db = router.db_for_write(self.__class__, instance=self)
         with transaction.atomic(using=db, savepoint=False):
             if update_fields is None or skwargs['update_fields']:
-                super(TranslatableModel, self).save(*args, **skwargs)
+                super().save(*args, **skwargs)
             if (update_fields is None or tkwargs['update_fields']) and translation is not None:
                 if translation.pk is None and update_fields:
                     del tkwargs['update_fields'] # allow new translations
@@ -284,13 +284,13 @@ class TranslatableModel(models.Model):
     #===========================================================================
 
     def clean_fields(self, exclude=None):
-        super(TranslatableModel, self).clean_fields(exclude=exclude)
+        super().clean_fields(exclude=exclude)
         translation = get_cached_translation(self)
         if translation is not None:
             translation.clean_fields(exclude=exclude + ['id', 'master', 'master_id', 'language_code'])
 
     def validate_unique(self, exclude=None):
-        super(TranslatableModel, self).validate_unique(exclude=exclude)
+        super().validate_unique(exclude=exclude)
         translation = get_cached_translation(self)
         if translation is not None:
             translation.validate_unique(exclude=exclude)
@@ -301,7 +301,7 @@ class TranslatableModel(models.Model):
 
     @classmethod
     def check(cls, **kwargs):
-        errors = super(TranslatableModel, cls).check(**kwargs)
+        errors = super().check(**kwargs)
         errors.extend(cls._check_shared_translated_clash())
         errors.extend(cls._check_default_manager_translation_aware())
         return errors
@@ -342,7 +342,7 @@ class TranslatableModel(models.Model):
                 cls._meta.translations_model._meta.get_field(field)
             except FieldDoesNotExist:
                 to_check.append(field)
-        return super(TranslatableModel, cls)._check_local_fields(to_check, option)
+        return super()._check_local_fields(to_check, option)
 
     @classmethod
     def _check_ordering(cls):
@@ -355,7 +355,7 @@ class TranslatableModel(models.Model):
 
         fields = [f for f in cls._meta.ordering if f != '?']
         fields = [f[1:] if f.startswith('-') else f for f in fields]
-        fields = set(f for f in fields if f not in ('_order', 'pk') and '__' not in f)
+        fields = {f for f in fields if f not in ('_order', 'pk') and '__' not in f}
 
         valid_fields = set(chain.from_iterable(
             (f.name, f.attname)

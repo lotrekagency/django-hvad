@@ -80,7 +80,7 @@ class TranslatableModelFormMetaclass(ModelFormMetaclass):
         meta.exclude = list(exclude)
 
         # Create the form class
-        new_class = super(TranslatableModelFormMetaclass, cls).__new__(cls, name, bases, attrs)
+        new_class = super().__new__(cls, name, bases, attrs)
 
         # Add translated fields into the form's base fields
         if model:
@@ -129,7 +129,7 @@ class BaseTranslatableModelForm(BaseModelForm):
         if initial is not None:
             object_data.update(initial)
 
-        super(BaseTranslatableModelForm, self).__init__(
+        super().__init__(
             data, files, auto_id, prefix, object_data,
             error_class, label_suffix, empty_permitted, instance, **kwargs
         )
@@ -138,7 +138,7 @@ class BaseTranslatableModelForm(BaseModelForm):
         ''' If a language is set on the form, enforce it by overwriting it
             in the cleaned_data.
         '''
-        data = super(BaseTranslatableModelForm, self).clean()
+        data = super().clean()
         if hasattr(self, 'language'):
             data['language_code'] = self.language
         return data
@@ -157,11 +157,11 @@ class BaseTranslatableModelForm(BaseModelForm):
         exclude = self._get_validation_exclusions()
         translation = construct_instance(self, translation, self._meta.fields, exclude)
         set_cached_translation(self.instance, translation)
-        result = super(BaseTranslatableModelForm, self)._post_clean()
+        result = super()._post_clean()
         return result
 
     def _get_validation_exclusions(self):
-        exclude = super(BaseTranslatableModelForm, self)._get_validation_exclusions()
+        exclude = super()._get_validation_exclusions()
         for f in self.instance._meta.translations_model._meta.fields:
             if f.name in veto_fields:
                 pass
@@ -204,7 +204,7 @@ class BaseTranslatableModelForm(BaseModelForm):
         set_cached_translation(self.instance, translation)
 
         # Delegate shared fields to super()
-        return super(BaseTranslatableModelForm, self).save(commit=commit)
+        return super().save(commit=commit)
 
 
 class TranslatableModelForm(BaseTranslatableModelForm, metaclass=TranslatableModelFormMetaclass):
@@ -289,7 +289,7 @@ class BaseTranslationFormSet(BaseInlineFormSet):
     It can delete translations, but will refuse to delete the last one.
     """
     def __init__(self, *args, **kwargs):
-        super(BaseTranslationFormSet, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.queryset = self.order_translations(self.queryset)
 
     def order_translations(self, qs):
@@ -303,7 +303,7 @@ class BaseTranslationFormSet(BaseInlineFormSet):
         """ Cross-validate instance with each of its translations in turn.
             Also check at least one translation would remain after saving the form.
         """
-        super(BaseTranslationFormSet, self).clean()
+        super().clean()
 
         # Trigger combined instance validation
         master = self.instance
@@ -357,7 +357,7 @@ class BaseTranslationFormSet(BaseInlineFormSet):
 
     def add_fields(self, form, index):
         """ Ensure translation form has a language_code field """
-        super(BaseTranslationFormSet, self).add_fields(form, index)
+        super().add_fields(form, index)
         # Add the language code automagically
         if not 'language_code' in form.fields:
             form.fields['language_code'] = CharField(

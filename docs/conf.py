@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Project 何 documentation build configuration file, created by
 # sphinx-quickstart on Tue Feb 15 11:19:28 2011.
@@ -41,8 +40,8 @@ exclude_patterns = ['_build']
 master_doc = 'index'
 
 # General information about the project.
-project = u'django-hvad'
-copyright = u'2011-2018, Kristian Øllegaard, Jonas Obrist & contributors'
+project = 'django-hvad'
+copyright = '2011-2018, Kristian Øllegaard, Jonas Obrist & contributors'
 
 version = '2.0'
 release = '2.0.0'
@@ -85,8 +84,8 @@ htmlhelp_basename = 'Projectdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'Project.tex', u'Django Hvad Documentation',
-   u'Jonas Obrist & contributors', 'manual'),
+  ('index', 'Project.tex', 'Django Hvad Documentation',
+   'Jonas Obrist & contributors', 'manual'),
 ]
 
 
@@ -95,8 +94,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'project', u'Django Hvad Documentation',
-     [u'Kristian Øllegaard, Jonas Obrist & contributors'], 1)
+    ('index', 'project', 'Django Hvad Documentation',
+     ['Kristian Øllegaard, Jonas Obrist & contributors'], 1)
 ]
 
 # -- Options for local extensions ----------------------------------------------

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.core.exceptions import FieldError
 from django.utils import translation
 from hvad.forms import (TranslatableModelForm,
@@ -27,7 +26,7 @@ class NormalMediaForm(TranslatableModelForm):
 
 class CustomLanguageNormalForm(NormalForm):
     def clean(self):
-        data = super(CustomLanguageNormalForm, self).clean()
+        data = super().clean()
         data['seen_language'] = data.get('language_code')
         data['language_code'] = 'sr'
         return data
@@ -377,7 +376,7 @@ class FormCommitTests(HvadTestCase, NormalFixture):
         'Calling save on a new instance with no language_code in cleaned_data'
         data = {
             'shared_field': 'shared',
-            'translated_field': u'српски',
+            'translated_field': 'српски',
         }
         # no instance, should use current language
         with translation.override('sr'):
@@ -388,7 +387,7 @@ class FormCommitTests(HvadTestCase, NormalFixture):
                 self.assertNotEqual(obj.pk, None)
                 self.assertEqual(obj.language_code, 'sr')
                 self.assertEqual(obj.shared_field, 'shared')
-                self.assertEqual(obj.translated_field, u'српски')
+                self.assertEqual(obj.translated_field, 'српски')
 
         # an instance with a translation loaded, should use that
         with translation.override('en'):
@@ -399,7 +398,7 @@ class FormCommitTests(HvadTestCase, NormalFixture):
                 self.assertNotEqual(obj.pk, None)
                 self.assertEqual(obj.language_code, 'sr')
                 self.assertEqual(obj.shared_field, 'shared')
-                self.assertEqual(obj.translated_field, u'српски')
+                self.assertEqual(obj.translated_field, 'српски')
 
     def test_create_enforcing(self):
         'Calling save() on a new instance with a language_code in cleaned_data'
@@ -467,7 +466,7 @@ class FormCommitTests(HvadTestCase, NormalFixture):
         Form = translatable_modelform_factory('sr', Normal, form=NormalForm)
         data = {
             'shared_field': 'shared',
-            'translated_field': u'српски',
+            'translated_field': 'српски',
         }
         with translation.override('en'):
             # wrong translation is loaded, override it
@@ -478,9 +477,9 @@ class FormCommitTests(HvadTestCase, NormalFixture):
                 self.assertEqual(obj.pk, self.normal_id[1])
                 self.assertEqual(obj.language_code, 'sr')
                 self.assertEqual(obj.shared_field, 'shared')
-                self.assertEqual(obj.translated_field, u'српски')
+                self.assertEqual(obj.translated_field, 'српски')
             self.assertEqual(Normal.objects.language('sr').get(pk=self.normal_id[1]).translated_field,
-                             u'српски')
+                             'српски')
 
     def test_set_fields_before_save(self):
         'Manually set some translated fields before calling save()'
@@ -493,16 +492,16 @@ class FormCommitTests(HvadTestCase, NormalFixture):
             form = Form(data, instance=Normal.objects.language('ja').get(pk=self.normal_id[1]))
             with self.assertNumQueries(1):
                 self.assertTrue(form.is_valid())
-            form.instance.translated_field = u'ћирилица'
+            form.instance.translated_field = 'ћирилица'
             with self.assertNumQueries(2):
                 obj = form.save()
             with self.assertNumQueries(0):
                 self.assertEqual(obj.pk, self.normal_id[1])
                 self.assertEqual(obj.language_code, 'sr')
                 self.assertEqual(obj.shared_field, 'shared')
-                self.assertEqual(obj.translated_field, u'ћирилица')
+                self.assertEqual(obj.translated_field, 'ћирилица')
             self.assertEqual(Normal.objects.language('sr').get(pk=self.normal_id[1]).translated_field,
-                             u'ћирилица')
+                             'ћирилица')
 
     def test_nocommit(self):
         'The commit=False should be properly honored'

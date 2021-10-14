@@ -12,14 +12,14 @@ class TranslationRaterTests(HvadTestCase):
         with self.settings(HVAD={'DEFAULT_LANGUAGE': 'aa', 'FALLBACK_LANGUAGES': ('bb', 'cc', 'dd')}):
             with translation.override('ee'):
                 rater = translation_rater()
-        result = sorted([Normal._meta.translations_model(language_code=lang)
-                         for lang in ('aa', 'bb', 'cc', 'dd', 'ee', 'ff')], key=rater)
+        result = sorted((Normal._meta.translations_model(language_code=lang)
+                         for lang in ('aa', 'bb', 'cc', 'dd', 'ee', 'ff')), key=rater)
         self.assertEqual([trobj.language_code for trobj in result], ['ff', 'dd', 'cc', 'bb', 'aa', 'ee'])
 
     def test_specified_rater(self):
         rater = translation_rater('cc', 'aa', 'bb')
-        result = sorted([Normal._meta.translations_model(language_code=lang)
-                         for lang in ('aa', 'bb', 'cc', 'dd')], key=rater)
+        result = sorted((Normal._meta.translations_model(language_code=lang)
+                         for lang in ('aa', 'bb', 'cc', 'dd')), key=rater)
         self.assertEqual([trobj.language_code for trobj in result], ['dd', 'bb', 'aa', 'cc'])
 
 class TranslationAccessorTests(HvadTestCase, NormalFixture):

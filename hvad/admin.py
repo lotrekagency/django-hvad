@@ -17,7 +17,6 @@ from django.template import TemplateDoesNotExist
 from django.template.loader import select_template
 from django.urls import re_path, reverse
 from django.utils.encoding import force_str, iri_to_uri
-from django.utils.functional import curry
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _, get_language, get_language_info
 from urllib.parse import urlencode, urlparse
@@ -66,7 +65,7 @@ class InlineModelForm(TranslatableModelForm):
 
 # ===============================================================================
 
-class TranslatableModelAdminMixin(object):
+class TranslatableModelAdminMixin:
     query_language_key = 'language'
 
     @mark_safe
@@ -78,14 +77,14 @@ class TranslatableModelAdminMixin(object):
         languages = []
         current_language = get_language()
         for language in getattr(obj, obj._meta.translations_accessor).all_languages():
-            entry = u'<a href="%s">%s</a>' % (self.get_url(obj, lang=language), language)
+            entry = '<a href="{}">{}</a>'.format(self.get_url(obj, lang=language), language)
             if language == current_language:
-                entry = u'<strong>%s</strong>' % entry
+                entry = '<strong>%s</strong>' % entry
             languages.append(entry)
-        return u', '.join(languages)
+        return ', '.join(languages)
 
     all_translations.allow_tags = True
-    all_translations.short_description = _(u'all translations')
+    all_translations.short_description = _('all translations')
 
     def get_language_tabs(self, obj, request, available_languages):
         info = None if obj is None else (obj._meta.app_label, obj._meta.model_name)
@@ -94,7 +93,7 @@ class TranslatableModelAdminMixin(object):
         language = self._language(request)
         for key, name in hvad_settings.LANGUAGES:
             get['language'] = key
-            url = '%s?%s' % (request.path, get.urlencode())
+            url = '{}?{}'.format(request.path, get.urlencode())
             if language == key:
                 status = 'current'
             elif key in available_languages:
@@ -120,7 +119,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
     deletion_not_allowed_template = 'admin/hvad/deletion_not_allowed.html'
 
     def __init__(self, *args, **kwargs):
-        super(TranslatableAdmin, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.reverse = functools.partial(reverse, current_app=self.admin_site.name)
 
     def get_url(self, obj, lang=None, get={}):
@@ -128,11 +127,11 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         info = ct.app_label, ct.model
         if lang:
             get.update({self.query_language_key: lang})
-        url = '%s?%s' % (self.reverse('admin:%s_%s_change' % info, args=(obj.pk,)), urlencode(get))
+        url = '{}?{}'.format(self.reverse('admin:%s_%s_change' % info, args=(obj.pk,)), urlencode(get))
         return url
 
     def get_urls(self):
-        urlpatterns = super(TranslatableAdmin, self).get_urls()
+        urlpatterns = super().get_urls()
         info = self.model._meta.app_label, self.model._meta.model_name
         return [
                    re_path(r'^(.+)/delete-translation/(.+)/$',
@@ -154,7 +153,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 tuple(kwargs.pop("exclude", ())) +
                 tuple(self.get_readonly_fields(request, obj) or ())
         )
-        old_formfield_callback = curry(self.formfield_for_dbfield, request=request)
+        old_formfield_callback = functools.partial(self.formfield_for_dbfield, request=request)
         defaults = {
             "form": self.form,
             "fields": fields,
@@ -173,7 +172,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                                getattr(obj, obj._meta.translations_accessor).all_languages())
 
         context.update({
-            'title': '%s (%s)' % (context['title'], lang),
+            'title': '{} ({})'.format(context['title'], lang),
             'current_is_translated': lang_code in available_languages,
             'allow_deletion': len(available_languages) > 1,
             'language_tabs': self.get_language_tabs(obj, request, available_languages),
@@ -189,19 +188,19 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 query['language'] = qs_language
             form_url = form_url._replace(query=query.urlencode()).geturl()
 
-        return super(TranslatableAdmin, self).render_change_form(request,
+        return super().render_change_form(request,
                                                                  context,
                                                                  add, change,
                                                                  form_url, obj)
 
     def response_change(self, request, obj):
-        response = super(TranslatableAdmin, self).response_change(request, obj)
+        response = super().response_change(request, obj)
         if 'Location' in response:
             uri = iri_to_uri(request.path)
             app_label, model_name = self.model._meta.app_label, self.model._meta.model_name
-            if response['Location'] in (uri, "../add/", self.reverse('admin:%s_%s_add' % (app_label, model_name))):
+            if response['Location'] in (uri, "../add/", self.reverse('admin:{}_{}_add'.format(app_label, model_name))):
                 if self.query_language_key in request.GET:
-                    response['Location'] = '%s?%s=%s' % (response['Location'],
+                    response['Location'] = '{}?{}={}'.format(response['Location'],
                                                          self.query_language_key, request.GET[self.query_language_key])
         return response
 
@@ -244,12 +243,12 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         if request.POST:  # The user has already confirmed the deletion.
             if perms_needed:
                 raise PermissionDenied
-            obj_display = u'%s translation of %s' % (force_str(lang), force_str(obj.master))
+            obj_display = '{} translation of {}'.format(force_str(lang), force_str(obj.master))
             self.log_deletion(request, obj, obj_display)
             self.delete_model_translation(request, obj)
 
             self.message_user(request,
-                              _(u'The %(name)s "%(obj)s" was deleted successfully.') % {
+                              _('The %(name)s "%(obj)s" was deleted successfully.') % {
                                   'name': force_str(opts.verbose_name),
                                   'obj': force_str(obj_display)
                               }
@@ -257,19 +256,19 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
 
             if not self.has_change_permission(request, None):
                 return HttpResponseRedirect(self.reverse('admin:index'))
-            return HttpResponseRedirect(self.reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name)))
+            return HttpResponseRedirect(self.reverse('admin:{}_{}_changelist'.format(opts.app_label, opts.model_name)))
 
-        object_name = _(u'%s Translation') % force_str(opts.verbose_name)
+        object_name = _('%s Translation') % force_str(opts.verbose_name)
 
         if perms_needed or protected:
-            title = _(u"Cannot delete %(name)s") % {"name": object_name}
+            title = _("Cannot delete %(name)s") % {"name": object_name}
         else:
-            title = _(u"Are you sure?")
+            title = _("Are you sure?")
 
         return render(
             request,
             self.delete_confirmation_template or (
-                "admin/%s/%s/delete_confirmation.html" % (app_label, opts.object_name.lower()),
+                "admin/{}/{}/delete_confirmation.html".format(app_label, opts.object_name.lower()),
                 "admin/%s/delete_confirmation.html" % app_label,
                 "admin/delete_confirmation.html"
             ), {
@@ -347,7 +346,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         opts = self.model._meta
         app_label = opts.app_label
         search_templates = [
-            "admin/%s/%s/change_form.html" % (app_label, opts.object_name.lower()),
+            "admin/{}/{}/change_form.html".format(app_label, opts.object_name.lower()),
             "admin/%s/change_form.html" % app_label,
             "admin/change_form.html"
         ]
@@ -384,7 +383,7 @@ class TranslatableInlineModelAdmin(InlineModelAdmin, TranslatableModelAdminMixin
             "fk_name": self.fk_name,
             "fields": fields,
             "exclude": exclude or None,
-            "formfield_callback": curry(self.formfield_for_dbfield, request=request),
+            "formfield_callback": functools.partial(self.formfield_for_dbfield, request=request),
             "extra": self.extra,
             "max_num": self.max_num,
             "can_delete": self.can_delete,
@@ -418,7 +417,7 @@ class TranslatableInlineModelAdmin(InlineModelAdmin, TranslatableModelAdminMixin
                 tuple(kwargs.pop("exclude", ())) +
                 self.get_readonly_fields(request, obj)
         )
-        old_formfield_callback = curry(self.formfield_for_dbfield, request=request)
+        old_formfield_callback = functools.partial(self.formfield_for_dbfield, request=request)
         defaults = {
             "form": self.form,
             "fields": fields,
@@ -434,7 +433,7 @@ class TranslatableInlineModelAdmin(InlineModelAdmin, TranslatableModelAdminMixin
         uri = iri_to_uri(request.path)
         if redirect['Location'] in (uri, "../add/"):
             if self.query_language_key in request.GET:
-                redirect['Location'] = '%s?%s=%s' % (redirect['Location'],
+                redirect['Location'] = '{}?{}={}'.format(redirect['Location'],
                                                      self.query_language_key, request.GET[self.query_language_key])
         return redirect
 

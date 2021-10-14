@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import django
 from django.contrib import admin
 from django.contrib.contenttypes.models import ContentType
@@ -15,7 +14,7 @@ from hvad.test_utils.testcase import HvadTestCase
 from hvad.test_utils.project.app.models import Normal, Unique, SimpleRelated, AutoPopulated
 
 
-class BaseAdminTests(object):
+class BaseAdminTests:
     def _get_admin(self, model):
         return admin.site._registry[model]
 
@@ -165,7 +164,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
 
         with translation.override('en'):
             with self.login_user_context('admin'):
-                danish_string = u"rød grød med fløde"
+                danish_string = "rød grød med fløde"
                 url = reverse('admin:app_autopopulated_add')
                 data = {
                     'translated_name': danish_string,
@@ -227,7 +226,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
                 )
                 for query_string in tests:
                     expected_dict = QueryDict(query_string)
-                    full_url = '%s?%s' % (url, query_string) if query_string else url
+                    full_url = '{}?{}'.format(url, query_string) if query_string else url
                     response = self.client.get(full_url)
                     form_url = urlparse(response.context['form_url'])
                     self.assertEqual(expected_dict, QueryDict(form_url.query),
@@ -238,7 +237,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
         lang = 'en'
         with translation.override('ja'):
             with self.login_user_context('admin'):
-                url = '%s?language=%s' % (reverse('admin:app_normal_change',
+                url = '{}?language={}'.format(reverse('admin:app_normal_change',
                                                   args=(self.normal_id[1],)), lang)
                 data = {
                     'translated_field': 'English NEW',
@@ -252,7 +251,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
 
                 response = self.client.post(url, data)
                 self.assertEqual(response.status_code, 302, response.content)
-                expected_url = '%s?language=%s' % (reverse('admin:app_normal_add'), lang)
+                expected_url = '{}?language={}'.format(reverse('admin:app_normal_add'), lang)
                 self.assertTrue(response['Location'].endswith(expected_url))
                 obj = Normal.objects.language('en').get(pk=self.normal_id[1])
                 self.assertEqual(obj.translated_field, "English NEW")
@@ -261,7 +260,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
         lang = 'en'
         with translation.override('ja'):
             with self.login_user_context('admin'):
-                url = '%s?language=%s' % (reverse('admin:app_normal_change',
+                url = '{}?language={}'.format(reverse('admin:app_normal_change',
                                                   args=(self.normal_id[1],)), lang)
                 data = {
                     'translated_field': 'English NEW',
@@ -314,7 +313,7 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
     def test_admin_dual(self):
         SHARED = 'shared_new'
         TRANS_EN = 'English'
-        TRANS_JA = u'日本語'
+        TRANS_JA = '日本語'
         with self.login_user_context('admin'):
             url = reverse('admin:app_normal_add')
             data_en = {
@@ -475,7 +474,7 @@ class AdminRelationTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixtu
     normal_count = 1
 
     def create_fixtures(self):
-        super(AdminRelationTests, self).create_fixtures()
+        super().create_fixtures()
         self.simple = SimpleRelated.objects.language('en').create(
             normal_id=self.normal_id[1], translated_field='English inline'
         )

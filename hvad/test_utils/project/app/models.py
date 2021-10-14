@@ -31,14 +31,14 @@ class Unique(TranslatableModel):
 
 class NormalProxy(Normal):
     def __str__(self):
-        return u'proxied %s' % super(NormalProxy, self).__str__()
+        return 'proxied %s' % super().__str__()
 
     class Meta:
         proxy = True
 
 class NormalProxyProxy(NormalProxy):
     def __str__(self):
-        return u'proxied^2 %s' % super(NormalProxyProxy, self).__str__()
+        return 'proxied^2 %s' % super().__str__()
 
     class Meta:
         proxy = True
@@ -114,7 +114,7 @@ class TranslatedMany(TranslatableModel):
     )
 
     def __str__(self):
-        return ('%s, %s <%s>' % (self.name, self.translated_field, self.language_code)
+        return ('{}, {} <{}>'.format(self.name, self.translated_field, self.language_code)
                 if self.translations.active is not None
                 else '%s <none>' % self.name)
 
@@ -287,4 +287,4 @@ class AutoPopulated(TranslatableModel):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.translated_name[:125])
-        super(AutoPopulated, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
