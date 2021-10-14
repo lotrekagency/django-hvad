@@ -15,11 +15,11 @@ from django.http import Http404, HttpResponseRedirect, QueryDict
 from django.shortcuts import render
 from django.template import TemplateDoesNotExist
 from django.template.loader import select_template
-from django.urls import reverse
-from django.utils.encoding import force_text, iri_to_uri
+from django.urls import re_path, reverse
+from django.utils.encoding import force_str, iri_to_uri
 from django.utils.functional import curry
 from django.utils.safestring import mark_safe
-from django.utils.translation import get_language, get_language_info, ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language, get_language_info
 from urllib.parse import urlencode, urlparse
 
 from hvad.forms import TranslatableModelForm, translatable_inlineformset_factory, translatable_modelform_factory
@@ -132,11 +132,10 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         return url
 
     def get_urls(self):
-        from django.conf.urls import url
         urlpatterns = super(TranslatableAdmin, self).get_urls()
         info = self.model._meta.app_label, self.model._meta.model_name
         return [
-                   url(r'^(.+)/delete-translation/(.+)/$',
+                   re_path(r'^(.+)/delete-translation/(.+)/$',
                        self.admin_site.admin_view(self.delete_translation),
                        name='%s_%s_delete_translation' % info),
                ] + urlpatterns
@@ -245,14 +244,14 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
         if request.POST:  # The user has already confirmed the deletion.
             if perms_needed:
                 raise PermissionDenied
-            obj_display = u'%s translation of %s' % (force_text(lang), force_text(obj.master))
+            obj_display = u'%s translation of %s' % (force_str(lang), force_str(obj.master))
             self.log_deletion(request, obj, obj_display)
             self.delete_model_translation(request, obj)
 
             self.message_user(request,
                               _(u'The %(name)s "%(obj)s" was deleted successfully.') % {
-                                  'name': force_text(opts.verbose_name),
-                                  'obj': force_text(obj_display)
+                                  'name': force_str(opts.verbose_name),
+                                  'obj': force_str(obj_display)
                               }
                               )
 
@@ -260,7 +259,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 return HttpResponseRedirect(self.reverse('admin:index'))
             return HttpResponseRedirect(self.reverse('admin:%s_%s_changelist' % (opts.app_label, opts.model_name)))
 
-        object_name = _(u'%s Translation') % force_text(opts.verbose_name)
+        object_name = _(u'%s Translation') % force_str(opts.verbose_name)
 
         if perms_needed or protected:
             title = _(u"Cannot delete %(name)s") % {"name": object_name}
@@ -296,7 +295,7 @@ class TranslatableAdmin(ModelAdmin, TranslatableModelAdminMixin):
                 'opts': opts,
                 'app_label': opts.app_label,
                 'language_name': get_language_info(language_code)['name_local'],
-                'object_name': force_text(opts.verbose_name),
+                'object_name': force_str(opts.verbose_name),
             },
         )
 
@@ -395,13 +394,12 @@ class TranslatableInlineModelAdmin(InlineModelAdmin, TranslatableModelAdminMixin
         return translatable_inlineformset_factory(language, self.parent_model, self.model, **defaults)
 
     def get_urls(self):
-        from django.conf.urls import url
         urlpatterns = super(InlineModelAdmin, self).get_urls()
 
         info = self.model._meta.app_label, self.model._meta.model_name
 
         return [
-                   url(r'^(.+)/delete-translation/(.+)/$',
+                   re_path(r'^(.+)/delete-translation/(.+)/$',
                        self.admin_site.admin_view(self.delete_translation),
                        name='%s_%s_delete_translation' % info),
                ] + urlpatterns

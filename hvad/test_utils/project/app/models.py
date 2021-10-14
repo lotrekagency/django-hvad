@@ -2,7 +2,7 @@ from django.db import models
 from django.template.defaultfilters import slugify
 from hvad.models import TranslatableModel, TranslatedFields
 from hvad.manager import TranslationManager, TranslationQueryset
-from django.utils.encoding import python_2_unicode_compatible
+
 
 #===============================================================================
 # Basic models

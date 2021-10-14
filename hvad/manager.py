@@ -7,8 +7,8 @@ from django.db import connections, models, transaction, IntegrityError
 from django.db.models.query import QuerySet
 from django.db.models.sql.datastructures import Join, LOUTER
 from django.db.models import F, Q
-from django.db.models.query import (ModelIterable, ValuesIterable,
-                                    ValuesListIterable, FlatValuesListIterable)
+from django.db.models.query import (FlatValuesListIterable, ModelIterable, ValuesIterable,
+                                    ValuesListIterable)
 from django.utils.functional import cached_property
 from django.utils.translation import get_language
 from hvad.fields import BetterTranslationsField

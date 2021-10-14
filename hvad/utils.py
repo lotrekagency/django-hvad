@@ -2,10 +2,10 @@
     Mostly intended for internal use and third-party modules.
 """
 import django
-from django.db.models.fields import FieldDoesNotExist
 from django.utils.translation import get_language
 from hvad.exceptions import WrongManager
 from hvad.settings import hvad_settings
+from django.core.exceptions import FieldDoesNotExist
 
 __all__ = (
     'translation_rater',

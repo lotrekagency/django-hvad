@@ -9,7 +9,7 @@ from django.forms.models import (BaseModelForm, ModelFormMetaclass,
     modelform_factory, inlineformset_factory, ALL_FIELDS)
 from django.forms.utils import ErrorList
 from django.forms.widgets import Select
-from django.utils.translation import get_language, ugettext as _
+from django.utils.translation import gettext as _, get_language
 from hvad.models import TranslatableModel, BaseTranslationModel
 from hvad.settings import hvad_settings
 from hvad.utils import (set_cached_translation, get_cached_translation, load_translation)

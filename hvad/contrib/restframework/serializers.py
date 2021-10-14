@@ -5,8 +5,7 @@
     TranslatableModelSerializer             - Serializer that handles translatable fields
     HyperlinkedTranslatableModelSerializer  - Hyperlinked serializer that handles translatable fields
 """
-from django.db.models.fields import FieldDoesNotExist
-from django.utils.translation import get_language, ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField
@@ -14,6 +13,7 @@ from hvad.exceptions import WrongManager
 from hvad.utils import get_cached_translation, set_cached_translation, load_translation
 from hvad.contrib.restframework.utils import TranslationListSerializer
 from collections import OrderedDict
+from django.core.exceptions import FieldDoesNotExist
 
 __all__ = (
     'TranslationsMixin',
