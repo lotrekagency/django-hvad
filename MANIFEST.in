@@ -5,3 +5,5 @@ recursive-include hvad/templates *
 recursive-include hvad/locale *
 recursive-include docs *
 prune testproject
+recursive-exclude testproject *
+recursive-exclude hvad/tests *
