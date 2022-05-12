@@ -132,7 +132,6 @@ to continue the development.
                      :target: https://pypi.org/project/lotrek-django-hvad
 .. |build| image:: https://img.shields.io/github/workflow/status/lotrekagency/django-hvad/Test,%20Coverage%20and%20Release?style=flat-square
 .. |coverage| image:: https://img.shields.io/codecov/c/github/lotrekagency/django-hvad?style=flat-square
-                      :target: https://coveralls.io/r/KristianOellegaard/django-hvad
 
 .. _documentation: http://django-hvad.readthedocs.org/
 .. _release notes: https://django-hvad.readthedocs.org/en/latest/public/release_notes.html
