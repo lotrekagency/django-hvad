@@ -13,8 +13,8 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9, 3.10]
-        django-version: [2.2, 3.2, 4.0]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+        django-version: ["2.2", "3.2", "4.0"]
         database-url: ["mysql://root@localhost/test", "postgres://postgres@localhost/test"]
     name: Test on Python ${{ matrix.python-version }} with Django ${{ matrix.django-version }} and Database ${{ matrix.database-url }}
 
