@@ -32,6 +32,7 @@ CONFIGURATION = {
         'OPTIONS': {'context_processors': [
             'django.contrib.auth.context_processors.auth',
             'django.contrib.messages.context_processors.messages',
+            'django.template.context_processors.request',
         ]}
     }],
     MIDDLEWARE_KEY: (
@@ -53,6 +54,7 @@ CONFIGURATION = {
         'django.contrib.messages'
     ),
     'STATIC_URL': '/static/',
+    'DEFAULT_AUTO_FIELD': 'django.db.models.AutoField',
 }
 
 ENGINES = {
