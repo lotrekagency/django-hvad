@@ -221,14 +221,13 @@ class NormalAdminTests(HvadTestCase, BaseAdminTests, UsersFixture, NormalFixture
                 url = reverse('admin:app_normal_change', args=(self.normal_id[1],))
                 tests = (
                     '',
-                    'language=fr',
-                    '_changelist_filters=q%3Dparam&language=fr',
+                    'language=ja',
+                    '_changelist_filters=q%3Dparam&language=ja',
                 )
                 for query_string in tests:
                     expected_dict = QueryDict(query_string)
                     full_url = '{}?{}'.format(url, query_string) if query_string else url
                     response = self.client.get(full_url)
-                    print (response.context['form_url'])
                     form_url = urlparse(response.context['form_url'])
                     self.assertEqual(expected_dict, QueryDict(form_url.query),
                                      'query_string=%r' % query_string)
