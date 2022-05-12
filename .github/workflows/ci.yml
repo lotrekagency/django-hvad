@@ -2,7 +2,7 @@ name: Test and Coverage
 
 on:
   push:
-    branches: [ '**' ]
+    branches: [ master, release ]
   pull_request:
     branches: [ master, release ]
 
