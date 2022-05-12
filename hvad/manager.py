@@ -471,7 +471,7 @@ class TranslationQueryset(QuerySet):
         if self._language_code == 'all':
             raise ValueError('Cannot use in_bulk along with language(\'all\').')
         qs = self.filter(pk__in=id_list)
-        qs.query.clear_ordering(force_empty=True)
+        qs.query.clear_ordering(True)
         return {obj._get_pk_val(): obj for obj in qs.iterator()}
 
     def delete(self):
@@ -752,7 +752,7 @@ class TranslationAwareQueryset(QuerySet):
         if not id_list:
             return {}
         qs = self.filter(pk__in=id_list)
-        qs.query.clear_ordering(force_empty=True)
+        qs.query.clear_ordering(True)
         return {obj._get_pk_val(): obj for obj in qs.iterator()}
 
     def values(self, *fields):
