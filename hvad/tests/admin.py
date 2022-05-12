@@ -78,13 +78,13 @@ class AdminMethodsTests(HvadTestCase, BaseAdminTests, NormalFixture):
             self.assertEqual(myadmin.get_object(get_request, obj.pk).translated_field,
                              NORMAL[1].translated_field['en'])
 
-        with translation.override('th'):
+        with translation.override('ja'):
             self.assertEqual(myadmin.get_object(get_request, obj.pk).pk,
                              self.normal_id[1])
             self.assertEqual(myadmin.get_object(get_request, obj.pk).shared_field,
                              NORMAL[1].shared_field)
-            self.assertEqual(myadmin.get_object(get_request, obj.pk).language_code, 'th')
-            self.assertEqual(myadmin.get_object(get_request, obj.pk).translated_field, '')
+            self.assertEqual(myadmin.get_object(get_request, obj.pk).language_code, 'ja')
+            self.assertEqual(myadmin.get_object(get_request, obj.pk).translated_field, '日本語一')
 
         # Check what happens if there is no translations at all
         obj = Normal.objects.untranslated().create(shared_field="shared")
