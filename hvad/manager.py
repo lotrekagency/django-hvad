@@ -563,7 +563,7 @@ class TranslationQueryset(QuerySet):
             raise NotImplementedError()
 
         newargs, newkwargs = self._translate_args_kwargs(**filter_obj)
-        return super()._filter_or_exclude(None, *newargs, **newkwargs)
+        return super()._filter_or_exclude(None, newargs, newkwargs)
 
     def annotate(self, *args, **kwargs):
         newkwargs = {k: self._translate_expression(v) for k, v in kwargs.items()}
