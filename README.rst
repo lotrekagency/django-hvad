@@ -128,10 +128,10 @@ Jonas Obrist (https://github.com/ojii) for making django-nani and for helping me
 Kristian Øllegaard (https://github.com/KristianOellegaard/) for django-hvad and trusting me
 to continue the development.
 
-.. |package| image:: https://badge.fury.io/py/django-hvad.svg
-                     :target: https://pypi.python.org/pypi/django-hvad
-.. |build| image:: https://secure.travis-ci.org/KristianOellegaard/django-hvad.svg?branch=master
-.. |coverage| image:: https://coveralls.io/repos/KristianOellegaard/django-hvad/badge.svg
+.. |package| image:: https://img.shields.io/pypi/v/lotrek-django-hvad?style=flat-square
+                     :target: https://pypi.org/project/lotrek-django-hvad
+.. |build| image:: https://img.shields.io/github/workflow/status/lotrekagency/django-hvad/Test,%20Coverage%20and%20Release?style=flat-square
+.. |coverage| image:: https://img.shields.io/codecov/c/github/lotrekagency/django-hvad?style=flat-square
                       :target: https://coveralls.io/r/KristianOellegaard/django-hvad
 
 .. _documentation: http://django-hvad.readthedocs.org/
