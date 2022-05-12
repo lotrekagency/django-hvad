@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django import forms
 from django.http import Http404
 from django.utils import translation
@@ -135,7 +134,7 @@ class UpdateViewTests(HvadTestCase, NormalFixture):
     normal_count = 2
 
     def setUp(self):
-        super(UpdateViewTests, self).setUp()
+        super().setUp()
         self.user = User.objects.create(username='admin', is_superuser=True)
 
     def test_get_default(self):

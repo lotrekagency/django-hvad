@@ -20,11 +20,14 @@ The guideline is hvad supports all Django versions that are supported by the
 Django team. This holds true for Long-Term Support releases as well. Support for
 new versions will usually be introduced when they reach the beta stage.
 
-Thus, django-hvad 1.5 is tested on the following configurations:
+Thus, django-hvad 2.0 is tested on the following configurations:
 
-- Django 1.7.11, running Python 2.7, 3.3 or 3.4.
-- Django 1.8.9, running Python 2.7, 3.3, 3.4 or 3.5.
-- Django 1.9.2, running Python 2.7, 3.4 or 3.5.
+- Django 2.1.2, running Python 3.5 or 3.6.
+
+As django-hvad 2.0 is incompatible with older releases, django-hvad 1.8.0 is still
+supported with:
+
+- Django 1.11, running Python 2.7, 3.4 or 3.5.
 
 All tests are run against MySQL and PostgreSQL.
 
@@ -45,6 +48,7 @@ Contents
     public/admin
     public/restframework
     public/faq
+    public/migrate
     public/release_notes
     public/contact
     public/contributing

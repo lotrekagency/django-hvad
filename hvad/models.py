@@ -1,32 +1,37 @@
+""" Translatable models, the main hvad API.
+"""
 import django
 from django.core import checks
-from django.core.exceptions import ImproperlyConfigured
-from django.db import models
+from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
+from django.db import models, router, transaction
 from django.db.models.base import ModelBase
-from django.db.models.fields import FieldDoesNotExist
 from django.db.models.manager import Manager
 from django.db.models.signals import class_prepared
 from django.utils.translation import get_language
 from hvad.descriptors import LanguageCodeAttribute, TranslatedAttribute
-from hvad.manager import TranslationManager, TranslationsModelManager
+from hvad.fields import SingleTranslationObject, MasterKey
+from hvad.manager import TranslationManager
 from hvad.settings import hvad_settings
-from hvad.utils import (get_cached_translation, set_cached_translation,
-                        SmartGetFieldByName, SmartGetField)
-from hvad.compat import MethodType
+from hvad.utils import get_cached_translation, set_cached_translation, SmartGetField
+from types import MethodType
 from itertools import chain
 import sys
 
 __all__ = ('TranslatableModel', 'TranslatedFields', 'NoTranslation')
 
-forbidden_translated_fields = frozenset({'Meta', 'objects', 'master', 'master_id'})
+forbidden_translated_fields = ('Meta', 'objects', 'master', 'master_id')
 
 #===============================================================================
 
-class TranslatedFields(object):
+NoTranslation = object()
+
+#===============================================================================
+
+class TranslatedFields:
     """ Wrapper class to define translated fields on a model. """
 
     def __init__(self, meta=None, base_class=None, **fields):
-        forbidden = forbidden_translated_fields.intersection(fields)
+        forbidden = set(forbidden_translated_fields).intersection(fields)
         if forbidden:
             raise ImproperlyConfigured(
                 'Invalid translated field: %s' % ', '.join(sorted(forbidden)))
@@ -63,7 +68,7 @@ class TranslatedFields(object):
         translations_model = self.create_translations_model(model, name)
         model._meta.translations_model = translations_model
         if not model._meta.abstract:
-            self.contribute_translations(model, translations_model, name)
+            model._meta.translations_accessor = name
 
     def create_translations_model(self, model, related_name):
         """ Create the translations model for a shared model.
@@ -83,9 +88,8 @@ class TranslatedFields(object):
 
         if not model._meta.abstract:
             # If this class is abstract, we must not contribute management fields
-            attrs['objects'] = TranslationsModelManager()
-            attrs['master'] = models.ForeignKey(model, related_name=related_name,
-                                                editable=False, on_delete=models.CASCADE)
+            attrs['master'] = MasterKey(model, related_name=related_name,
+                                        editable=False, on_delete=models.CASCADE)
             if 'language_code' not in attrs:    # allow overriding
                 attrs['language_code'] = models.CharField(max_length=15, db_index=True)
 
@@ -167,34 +171,16 @@ class TranslatedFields(object):
 
         return type('Meta', (object,), meta)
 
-    def contribute_translations(self, model, translations_model, related_name):
-        """ Contribute translations model to the Meta class and set descriptors """
-
-        model._meta.translations_accessor = related_name
-        model._meta.translations_cache = '%s_cache' % related_name
-
-        # Set descriptors
-        ignore_fields = ('pk', 'master', 'master_id', translations_model._meta.pk.name)
-        for field in translations_model._meta.fields:
-            if field.name in ignore_fields:
-                continue
-            if field.name == 'language_code':
-                attr = LanguageCodeAttribute(model)
-            else:
-                attr = TranslatedAttribute(model, field.name)
-                attname = field.get_attname()
-                if attname and attname != field.name:
-                    setattr(model, attname, TranslatedAttribute(model, attname))
-            setattr(model, field.name, attr)
-
 #===============================================================================
 
 class BaseTranslationModel(models.Model):
+    """ Base model for all translation models """
+
     def _get_unique_checks(self, exclude=None):
         # Due to the way translations are handled, checking for unicity of
         # the ('language_code', 'master') constraint is useless. We filter it out
         # here so as to avoid a useless query
-        unique_checks, date_checks = super(BaseTranslationModel, self)._get_unique_checks(exclude=exclude)
+        unique_checks, date_checks = super()._get_unique_checks(exclude=exclude)
         unique_checks = [check for check in unique_checks
                          if check != (self.__class__, ('language_code', 'master'))]
         return unique_checks, date_checks
@@ -202,10 +188,7 @@ class BaseTranslationModel(models.Model):
     class Meta:
         abstract = True
 
-
-class NoTranslation(object):
-    pass
-
+#===============================================================================
 
 class TranslatableModel(models.Model):
     """
@@ -216,8 +199,7 @@ class TranslatableModel(models.Model):
 
     class Meta:
         abstract = True
-        if django.VERSION >= (1, 10):
-            base_manager_name = '_plain_manager'
+        base_manager_name = '_plain_manager'
 
     def __init__(self, *args, **kwargs):
         # Split arguments into shared/translatd
@@ -234,10 +216,24 @@ class TranslatableModel(models.Model):
                     skwargs[key] = value
                 else:
                     tkwargs[key] = value
-        super(TranslatableModel, self).__init__(*args, **skwargs)
-        if tkwargs:
-            tkwargs['language_code'] = tkwargs.get('language_code') or get_language()
+        super().__init__(*args, **skwargs)
+        language_code = tkwargs.get('language_code') or get_language()
+        if language_code is not NoTranslation:
+            tkwargs['language_code'] = language_code
             set_cached_translation(self, self._meta.translations_model(**tkwargs))
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        if len(values) != len(cls._meta.concrete_fields):
+            # Missing values are deferred and must be marked as such
+            values = list(values)
+            values.reverse()
+            values = [values.pop() if f.attname in field_names else models.DEFERRED
+                    for f in cls._meta.concrete_fields]
+        new = cls(*values, language_code=NoTranslation)
+        new._state.adding = False
+        new._state.db = db
+        return new
 
     def save(self, *args, **skwargs):
         veto_names = ('pk', 'master', 'master_id', self._meta.translations_model._meta.pk.name)
@@ -262,84 +258,39 @@ class TranslatableModel(models.Model):
             skwargs['update_fields'], tkwargs['update_fields'] = supdate, tupdate
 
         # save share and translated model in a single transaction
-        if update_fields is None or skwargs['update_fields']:
-            super(TranslatableModel, self).save(*args, **skwargs)
-        if (update_fields is None or tkwargs['update_fields']) and translation is not None:
-            if translation.pk is None and update_fields:
-                del tkwargs['update_fields'] # allow new translations
-            translation.master = self
-            translation.save(*args, **tkwargs)
+        db = router.db_for_write(self.__class__, instance=self)
+        with transaction.atomic(using=db, savepoint=False):
+            if update_fields is None or skwargs['update_fields']:
+                super().save(*args, **skwargs)
+            if (update_fields is None or tkwargs['update_fields']) and translation is not None:
+                if translation.pk is None and update_fields:
+                    del tkwargs['update_fields'] # allow new translations
+                translation.master = self
+                translation.save(*args, **tkwargs)
     save.alters_data = True
 
     def translate(self, language_code):
-        ''' Create a new translation for current instance.
-            Does NOT check if the translation already exists!
-        '''
+        """ Create a new translation for current instance.
+            Does NOT check if the translation already exists.
+        """
         set_cached_translation(
             self,
             self._meta.translations_model(language_code=language_code)
         )
-        return self
     translate.alters_data = True
-
-    def safe_translation_getter(self, name, default=None):
-        cache = get_cached_translation(self)
-        if cache is None:
-            return default
-        return getattr(cache, name, default)
-
-    def lazy_translation_getter(self, name, default=None):
-        """
-        Lazy translation getter that fetches translations from DB in case the instance is currently untranslated and
-        saves the translation instance in the translation cache
-        """
-        stuff = self.safe_translation_getter(name, NoTranslation)
-        if stuff is not NoTranslation:
-            return stuff
-
-        # get all translations
-        translations = getattr(self, self._meta.translations_accessor).all()
-
-        # if no translation exists, bail out now
-        if len(translations) == 0:
-            return default
-
-        # organize translations into a nice dict
-        translation_dict = dict((t.language_code, t) for t in translations)
-
-        # see if we have the right language, or any language in fallbacks
-        for code in (get_language(),) + hvad_settings.FALLBACK_LANGUAGES:
-            try:
-                translation = translation_dict[code]
-            except KeyError:
-                continue
-            break
-        else:
-            # none of the fallbacks was found, pick an arbitrary translation
-            translation = translation_dict.popitem()[1]
-
-        set_cached_translation(self, translation)
-        return getattr(translation, name, default)
-
-    def get_available_languages(self):
-        """ Get a list of all available language_code in db. """
-        qs = getattr(self, self._meta.translations_accessor).all()
-        if qs._result_cache is not None:
-            return [obj.language_code for obj in qs]
-        return qs.values_list('language_code', flat=True)
 
     #===========================================================================
     # Validation
     #===========================================================================
 
     def clean_fields(self, exclude=None):
-        super(TranslatableModel, self).clean_fields(exclude=exclude)
+        super().clean_fields(exclude=exclude)
         translation = get_cached_translation(self)
         if translation is not None:
             translation.clean_fields(exclude=exclude + ['id', 'master', 'master_id', 'language_code'])
 
     def validate_unique(self, exclude=None):
-        super(TranslatableModel, self).validate_unique(exclude=exclude)
+        super().validate_unique(exclude=exclude)
         translation = get_cached_translation(self)
         if translation is not None:
             translation.validate_unique(exclude=exclude)
@@ -350,7 +301,7 @@ class TranslatableModel(models.Model):
 
     @classmethod
     def check(cls, **kwargs):
-        errors = super(TranslatableModel, cls).check(**kwargs)
+        errors = super().check(**kwargs)
         errors.extend(cls._check_shared_translated_clash())
         errors.extend(cls._check_default_manager_translation_aware())
         return errors
@@ -391,7 +342,7 @@ class TranslatableModel(models.Model):
                 cls._meta.translations_model._meta.get_field(field)
             except FieldDoesNotExist:
                 to_check.append(field)
-        return super(TranslatableModel, cls)._check_local_fields(to_check, option)
+        return super()._check_local_fields(to_check, option)
 
     @classmethod
     def _check_ordering(cls):
@@ -404,7 +355,7 @@ class TranslatableModel(models.Model):
 
         fields = [f for f in cls._meta.ordering if f != '?']
         fields = [f[1:] if f.startswith('-') else f for f in fields]
-        fields = set(f for f in fields if f not in ('_order', 'pk') and '__' not in f)
+        fields = {f for f in fields if f not in ('_order', 'pk') and '__' not in f}
 
         valid_fields = set(chain.from_iterable(
             (f.name, f.attname)
@@ -423,6 +374,9 @@ class TranslatableModel(models.Model):
 #=============================================================================
 
 def prepare_translatable_model(sender, **kwargs):
+    """ Make a model translatable if it inherits TranslatableModel.
+        Invoked by Django after it has finished setting up any model.
+    """
     model = sender
     if not issubclass(model, TranslatableModel) or model._meta.abstract:
         return
@@ -430,7 +384,6 @@ def prepare_translatable_model(sender, **kwargs):
     if model._meta.proxy:
         model._meta.translations_accessor = model._meta.concrete_model._meta.translations_accessor
         model._meta.translations_model = model._meta.concrete_model._meta.translations_model
-        model._meta.translations_cache = model._meta.concrete_model._meta.translations_cache
 
     if not hasattr(model._meta, 'translations_model'):
         raise ImproperlyConfigured("No TranslatedFields found on %r, subclasses of "
@@ -438,25 +391,31 @@ def prepare_translatable_model(sender, **kwargs):
 
     #### Now we have to work ####
 
-    # Ensure _base_manager cannot be TranslationManager despite use_for_related_fields
-    # 1- it is useless unless default_class is overriden
-    # 2- in that case, _base_manager is used for saving objects and must not be
-    #    translation aware.
-    base_mgr = getattr(model, '_base_manager', None)
-    if base_mgr is None or isinstance(base_mgr, TranslationManager):
-        assert django.VERSION < (1, 10)
-        model.add_to_class('_base_manager', Manager())
+    # Create query foreign object
+    if model._meta.proxy:
+        hvad_query = model._meta.concrete_model._meta.get_field('_hvad_query')
+    else:
+        hvad_query = SingleTranslationObject(model)
+        model.add_to_class('_hvad_query', hvad_query)
+
+    # Set descriptors
+    ignore_fields = ('pk', 'master', 'master_id', 'language_code',
+                     model._meta.translations_model._meta.pk.name)
+    setattr(model, 'language_code', LanguageCodeAttribute(model, hvad_query))
+    for field in model._meta.translations_model._meta.fields:
+        if field.name in ignore_fields:
+            continue
+        setattr(model, field.name, TranslatedAttribute(model, field.name, hvad_query))
+        attname = field.get_attname()
+        if attname and attname != field.name:
+            setattr(model, attname, TranslatedAttribute(model, attname, hvad_query))
 
     # Replace get_field_by_name with one that warns for common mistakes
-    if django.VERSION < (1, 9) and not isinstance(model._meta.get_field_by_name, SmartGetFieldByName):
-        model._meta.get_field_by_name = MethodType(
-            SmartGetFieldByName(model._meta.get_field_by_name),
-            model._meta
-        )
     if not isinstance(model._meta.get_field, SmartGetField):
         model._meta.get_field = MethodType(
             SmartGetField(model._meta.get_field),
             model._meta
         )
+
 
 class_prepared.connect(prepare_translatable_model)

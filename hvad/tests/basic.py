@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import with_statement
 import django
 from django.apps import apps
 from django.core import checks
@@ -12,7 +10,6 @@ from hvad import settings
 from hvad.exceptions import WrongManager
 from hvad.manager import TranslationQueryset
 from hvad.models import TranslatableModel, TranslatedFields
-from hvad.utils import get_cached_translation
 from hvad.test_utils.data import NORMAL
 from hvad.test_utils.fixtures import NormalFixture
 from hvad.test_utils.testcase import HvadTestCase
@@ -31,16 +28,6 @@ class SettingsTests(HvadTestCase):
                 obj=key,
                 id='hvad.settings.C01'
             ), errors)
-
-    def test_table_name_separator(self):
-        with self.settings(HVAD={'TABLE_NAME_SEPARATOR': 'foo'}):
-            errors = settings.check(apps)
-        self.assertIn(checks.Error('Obsolete setting HVAD["TABLE_NAME_SEPARATOR"]',
-            hint='TABLE_NAME_SEPARATOR has been superceded by TABLE_NAME_FORMAT. '
-                 'Set it to "%sfootranslation" to keep the old behavior',
-            obj='TABLE_NAME_SEPARATOR',
-            id='hvad.settings.E01',
-        ), errors)
 
     def test_languages(self):
         with self.settings(HVAD={'LANGUAGES': [('fr', 'French'), ('en', 'English')]}):
@@ -282,7 +269,7 @@ class DefinitionTests(HvadTestCase):
             )
         obj = CustomBaseModel(language_code='en')
         self.assertTrue(issubclass(CustomBaseModel._meta.translations_model, CustomTranslation))
-        self.assertEqual(get_cached_translation(obj).test(), 'foo')
+        self.assertEqual(obj.translations.active.test(), 'foo')
 
     def test_manager_properties(self):
         manager = Normal.objects
@@ -302,13 +289,124 @@ class OptionsTest(HvadTestCase):
     def test_options(self):
         self.assertEqual(Normal._meta.translations_model.__name__, 'NormalTranslation')
         self.assertEqual(Normal._meta.translations_accessor, 'translations')
-        if django.VERSION < (1, 9):
-            self.assertRaises(FieldDoesNotExist, Normal._meta.get_field_by_name, 'inexistent_field')
-            self.assertRaises(WrongManager, Normal._meta.get_field_by_name, 'translated_field')
         self.assertRaises(FieldDoesNotExist, Normal._meta.get_field, 'inexistent_field')
         self.assertRaises(WrongManager, Normal._meta.get_field, 'translated_field')
         self.assertIs(Normal._meta.get_field(Normal._meta.translations_accessor).field.model,
                       Normal._meta.translations_model)
+
+
+class RelatedTranslationManagerTests(HvadTestCase, NormalFixture):
+    normal_count = 2
+
+    def test_active(self):
+        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
+        self.assertIs(obj.translations.active, None)
+        obj.translate('en')
+        self.assertIsInstance(obj.translations.active, obj._meta.translations_model)
+        self.assertEqual(obj.translations.active.language_code, 'en')
+
+    def test_activate_translation(self):
+        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
+        self.assertIs(obj.translations.active, None)
+
+        # Activate valid translation
+        with self.assertNumQueries(0):
+            translation = obj._meta.translations_model(language_code='en')
+            obj.translations.activate(translation)
+        self.assertIs(obj.translations.active, translation)
+
+        # Activate no translation
+        with self.assertNumQueries(0):
+            obj.translations.activate(None)
+        self.assertIs(obj.translations.active, None)
+
+        # Activate invalid translation
+        obj2 = Normal.objects.language('en').get(pk=self.normal_id[2])
+        self.assertRaises(ValueError, obj.translations.activate, obj2.translations.active)
+
+    def test_activate_language(self):
+        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
+        self.assertIs(obj.translations.active, None)
+
+        with self.assertNumQueries(1):
+            obj.translations.activate('en')
+        self.assertEqual(obj.translated_field, NORMAL[1].translated_field['en'])
+
+        with self.assertNumQueries(0):
+            obj.translations.activate('ja')
+        self.assertEqual(obj.translated_field, NORMAL[1].translated_field['ja'])
+
+        with self.assertNumQueries(0):
+            self.assertRaises(obj._meta.translations_model.DoesNotExist,
+                              obj.translations.activate, 'xx')
+
+    def test_activate_language_prefetched(self):
+        """ Activate does not hit the database if translations are prefetched """
+        obj = Normal.objects.untranslated().prefetch_related('translations').get(pk=self.normal_id[1])
+        self.assertIs(obj.translations.active, None)
+
+        with self.assertNumQueries(0):
+            obj.translations.activate('en')
+        self.assertEqual(obj.translated_field, NORMAL[1].translated_field['en'])
+
+    def test_prefetch(self):
+        """ Prefetch is functionaly similar to prefetch_related('translation') on queryset """
+        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
+        with self.assertNumQueries(1):
+            obj.translations.prefetch()
+        with self.assertNumQueries(0):
+            self.assertTrue(obj.translations.all())
+
+        obj = Normal.objects.untranslated().prefetch_related('translations').get(pk=self.normal_id[1])
+        with self.assertNumQueries(0):
+            obj.translations.prefetch()
+        with self.assertNumQueries(0):
+            self.assertTrue(obj.translations.all())
+        with self.assertNumQueries(1):
+            obj.translations.prefetch(force_reload=True)
+
+    def test_all_languages(self):
+        """ all_languages() returns a set of available languages for instance """
+        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
+        with self.assertNumQueries(1):
+            translations = obj.translations.all_languages()
+        self.assertIsInstance(translations, set)
+        self.assertCountEqual(translations, self.translations)
+        with self.assertNumQueries(1):
+            translations = obj.translations.all_languages()
+
+        obj = Normal.objects.untranslated().prefetch_related('translations').get(pk=self.normal_id[1])
+        with self.assertNumQueries(0):
+            translations = obj.translations.all_languages()
+        self.assertIsInstance(translations, set)
+        self.assertCountEqual(translations, self.translations)
+
+    def test_get_language(self):
+        """ get_language(lang) returns the translations model for that language """
+        obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
+        with self.assertNumQueries(1):
+            trobj = obj.translations.get_language('en')
+        self.assertEqual(trobj.translated_field, NORMAL[1].translated_field['en'])
+
+        # Try to actually use the returned translation
+        obj.translations.activate(trobj)
+        self.assertEqual(obj.translated_field, NORMAL[1].translated_field['en'])
+
+        # Try to get a translation in current language
+        with self.assertNumQueries(1):
+            with translation.override('ja'):
+                trobj = obj.translations.get_language(None)
+            self.assertEqual(trobj.language_code, 'ja')
+
+        # Try to get a translation that does not exist
+        with self.assertNumQueries(1):
+            self.assertRaises(obj._meta.translations_model.DoesNotExist,
+                              obj.translations.get_language, 'xx')
+
+        obj = Normal.objects.untranslated().prefetch_related('translations').get(pk=self.normal_id[1])
+        with self.assertNumQueries(0):
+            trobj = obj.translations.get_language('en')
+        self.assertEqual(trobj.translated_field, NORMAL[1].translated_field['en'])
 
 
 class QuerysetTest(HvadTestCase):
@@ -427,18 +525,15 @@ class CreateTest(HvadTestCase):
             self.assertEqual(en.language_code, "en")
 
     def test_create_instance_untranslated(self):
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             with translation.override('en'):
                 ut = Normal.objects.create(
                     shared_field="shared",
                 )
         self.assertEqual(ut.shared_field, "shared")
-        with self.assertNumQueries(1):
-            with self.assertRaises(AttributeError):
-                ut.translated_field
-        with self.assertNumQueries(1):
-            with self.assertRaises(AttributeError):
-                ut.language_code
+        with self.assertNumQueries(0):
+            self.assertEqual(ut.translated_field, '')
+            self.assertEqual(ut.language_code, 'en')
 
     def test_create_lang_override(self):
         with self.assertRaises(ValueError):
@@ -560,16 +655,6 @@ class GetTest(HvadTestCase, NormalFixture):
         qs = Normal.objects.language('en') | Normal.objects.language('de')
         found = qs.filter(shared_field=NORMAL[1].shared_field).get(pk=self.normal_id[1])
         self.assertEqual(found.pk, self.normal_id[1])
-
-    def test_safe_translation_getter(self):
-        untranslated = Normal.objects.untranslated().get(pk=self.normal_id[1])
-        with translation.override('en'):
-            self.assertEqual(untranslated.safe_translation_getter('translated_field', None), None)
-            Normal.objects.untranslated().get(pk=self.normal_id[1])
-            self.assertEqual(untranslated.safe_translation_getter('translated_field', "English"), "English")
-        with translation.override('ja'):
-            self.assertEqual(untranslated.safe_translation_getter('translated_field', None), None)
-            self.assertEqual(untranslated.safe_translation_getter('translated_field', "Test"), "Test")
 
 
 class GetByLanguageTest(HvadTestCase, NormalFixture):
@@ -702,7 +787,7 @@ class DescriptorTests(HvadTestCase, NormalFixture):
 
         # Set translated attribute with a translation loaded
         obj = Normal.objects.language("en").get(pk=self.normal_id[1])
-        trans = get_cached_translation(obj)
+        trans = obj.translations.active
         with self.assertNumQueries(0):
             obj.translated_field = 'foo'
             self.assertNotIn('translated_field', obj.__dict__)
@@ -719,7 +804,7 @@ class DescriptorTests(HvadTestCase, NormalFixture):
         with self.assertNumQueries(1):
             with self.settings(HVAD={'AUTOLOAD_TRANSLATIONS': True}), translation.override('ja'):
                 obj.translated_field = 'foo'
-                trans = get_cached_translation(obj)
+                trans = obj.translations.active
                 self.assertNotIn('translated_field', obj.__dict__)
                 self.assertEqual(trans.__dict__['translated_field'], 'foo')
 
@@ -736,12 +821,8 @@ class DescriptorTests(HvadTestCase, NormalFixture):
         obj = Normal.objects.language("en").get(pk=self.normal_id[1])
         with self.assertNumQueries(0):
             del obj.translated_field
-        if django.VERSION >= (1, 10):   # on version 1.10 and newer, this refreshes from db
-            with self.assertNumQueries(1):
-                self.assertEqual(obj.translated_field, NORMAL[1].translated_field['en'])
-        else:
-            with self.assertNumQueries(0):
-                self.assertRaises(AttributeError, getattr, obj, 'translated_field')
+        with self.assertNumQueries(1):
+            self.assertEqual(obj.translated_field, NORMAL[1].translated_field['en'])
 
         # Delete a translated field without a translation loaded, AUTOLOAD is false
         obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
@@ -763,19 +844,26 @@ class DescriptorTests(HvadTestCase, NormalFixture):
 
     def test_translated_foreignkey_set(self):
         """ Special behavior for ForeignKey and its remote id """
-        cache = Related._meta.translations_cache
+        hvad_query = Related._meta.get_field('_hvad_query')
 
         normal = Normal.objects.language('en').get(pk=self.normal_id[1])
         related = Related(language_code='en')
         related.translated = normal
         self.assertNotIn('translated_id', related.__dict__)
-        self.assertIn('translated_id', getattr(related, cache).__dict__)
-        self.assertEqual(getattr(related, cache).__dict__['translated_id'], self.normal_id[1])
+        self.assertIn('translated_id', hvad_query.get_cached_value(related).__dict__)
+        self.assertEqual(hvad_query.get_cached_value(related).__dict__['translated_id'], self.normal_id[1])
 
         related.translated_id = 4242
         self.assertNotIn('translated_id', related.__dict__)
-        self.assertIn('translated_id', getattr(related, cache).__dict__)
-        self.assertEqual(getattr(related, cache).__dict__['translated_id'], 4242)
+        self.assertIn('translated_id', hvad_query.get_cached_value(related).__dict__)
+        self.assertEqual(hvad_query.get_cached_value(related).__dict__['translated_id'], 4242)
+
+    def test_translated_attribute_delete(self):
+        # Accessing a deleted translated attribute reloads the translation
+        obj = Normal.objects.language("en").create(shared_field="test", translated_field="en")
+        self.assertEqual(obj.translated_field, "en")
+        delattr(obj, 'translated_field')
+        self.assertEqual(obj.translated_field, "en")
 
     def test_language_code_attribute(self):
         """ Language code special attribute behaviors """
@@ -788,9 +876,9 @@ class DescriptorTests(HvadTestCase, NormalFixture):
 
         # Get language_code without a translation loaded
         obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(0):
             with translation.override('ja'):
-                self.assertEqual(obj.language_code, 'ja')
+                self.assertEqual(obj.language_code, None)
 
         # Alter or delete language_code
         self.assertRaises(AttributeError, setattr, obj, 'language_code', "en")
@@ -865,11 +953,11 @@ class GetOrCreateTest(HvadTestCase):
             """
             ja, created = Normal.objects.language('ja').get_or_create(
                 shared_field="shared",
-                defaults={'translated_field': u'日本語',},
+                defaults={'translated_field': '日本語',},
             )
         self.assertTrue(created)
         self.assertEqual(ja.shared_field, "shared")
-        self.assertEqual(ja.translated_field, u'日本語')
+        self.assertEqual(ja.translated_field, '日本語')
         self.assertEqual(ja.language_code, "ja")
         self.assertNotEqual(en.pk, ja.pk)
 
@@ -921,11 +1009,11 @@ class GetOrCreateTest(HvadTestCase):
         )
         ja, created = Normal.objects.language('ja').get_or_create(
             shared_field="shared",
-            translated_field=u'日本語',
+            translated_field='日本語',
         )
         self.assertTrue(created)
         self.assertEqual(ja.shared_field, "shared")
-        self.assertEqual(ja.translated_field, u'日本語')
+        self.assertEqual(ja.translated_field, '日本語')
         self.assertEqual(ja.language_code, "ja")
         self.assertNotEqual(en.pk, ja.pk)
 
@@ -954,17 +1042,17 @@ class GetOrCreateTest(HvadTestCase):
         )
         ja, created = MultipleFields.objects.language('ja').get_or_create(
             first_shared_field="shared-one",
-            first_translated_field=u'日本語-一',
+            first_translated_field='日本語-一',
             defaults={
                 'second_shared_field': 'x-shared-two',
-                'second_translated_field': u'日本語-二',
+                'second_translated_field': '日本語-二',
             }
         )
         self.assertTrue(created)
         self.assertEqual(ja.first_shared_field, "shared-one")
         #self.assertEqual(ja.second_shared_field, "shared-two")
-        self.assertEqual(ja.first_translated_field, u'日本語-一')
-        self.assertEqual(ja.second_translated_field,  u'日本語-二')
+        self.assertEqual(ja.first_translated_field, '日本語-一')
+        self.assertEqual(ja.second_translated_field,  '日本語-二')
         self.assertEqual(ja.language_code, "ja")
         self.assertNotEqual(en.pk, ja.pk)
 

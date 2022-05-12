@@ -1,47 +1,70 @@
+""" Miscellaneous standalone functions for manipulating translations.
+    Mostly intended for internal use and third-party modules.
+"""
 import django
-from django.db.models.fields import FieldDoesNotExist
 from django.utils.translation import get_language
 from hvad.exceptions import WrongManager
+from hvad.settings import hvad_settings
+from django.core.exceptions import FieldDoesNotExist
 
 __all__ = (
+    'translation_rater',
     'get_translation_aware_manager',
 )
+
+#=============================================================================
+# Public utils
+
+def translation_rater(*languages):
+    """ Return a translation rater for the given set of languages.
+        If language list is omitted, use:
+            - current language, then
+            - site's default language, then
+            - site's fallback languages, then
+            - equal score of -1 for all other languages
+    """
+    if not languages:
+        languages = (get_language(), hvad_settings.DEFAULT_LANGUAGE) + hvad_settings.FALLBACK_LANGUAGES
+    score_dict = {code: idx for idx, code in enumerate(languages[::-1], 1)}
+    return lambda translation: score_dict.get(translation.language_code, -1)
+
+def get_translation_aware_manager(model):
+    """ Return a manager for an untranslatable model, that recognizes
+        hvad translations.
+    """
+    if hasattr(model._meta, 'translations_model'):
+        raise TypeError('get_translation_aware_manager must only be used on regular, '
+                        'untranslatable model. Model %s is translatable.' % model.__name__)
+    from hvad.manager import TranslationAwareManager
+    manager = TranslationAwareManager()
+    manager.model = model
+    return manager
 
 #=============================================================================
 # Translation manipulators
 
 def get_cached_translation(instance):
-    'Get currently cached translation of the instance'
-    return getattr(instance, instance._meta.translations_cache, None)
+    """ Get currently cached translation of the instance.
+        Intended for internal use and third-party modules.
+        User code should use instance.translations.active instead.
+    """
+    return instance._meta.get_field('_hvad_query').get_cached_value(instance, None)
 
 def set_cached_translation(instance, translation):
-    '''Sets the translation cached onto instance.
+    """ Sets the translation cached onto instance.
+        Intended for internal use and third-party modules.
+        User code should use instance.translations.activate(translation) instead
         - Passing None unsets the translation cache
         - Returns the translation that was loaded before
-    '''
-    tcache = instance._meta.translations_cache
-    previous = getattr(instance, tcache, None)
+    """
+    hvad_query = instance._meta.get_field('_hvad_query')
+    previous = hvad_query.get_cached_value(instance, None)
     if translation is None:
         if previous is not None:
-            delattr(instance, tcache)
+            hvad_query.delete_cached_value(instance)
     else:
-        setattr(instance, tcache, translation)
+        hvad_query.set_cached_value(instance, translation)
     return previous
-
-def combine(trans, klass):
-    """
-    'Combine' the shared and translated instances by setting the translation
-    on the 'translations_cache' attribute of the shared instance and returning
-    the shared instance.
-
-    The result is casted to klass (needed for proxy models).
-    """
-    combined = trans.master
-    if klass._meta.proxy:
-        combined.__class__ = klass
-    setattr(combined, combined._meta.translations_cache, trans)
-    return combined
-
 
 def get_translation(instance, language_code=None):
     ''' Get translation by language. Fresh copy is loaded from DB.
@@ -56,7 +79,7 @@ def get_translation(instance, language_code=None):
         for obj in qs:
             if obj.language_code == language_code:
                 return obj
-        raise accessor.model.DoesNotExist('%r is not translated in %r' % (instance, language_code))
+        raise accessor.model.DoesNotExist('{!r} is not translated in {!r}'.format(instance, language_code))
     return accessor.get(language_code=language_code)
 
 def load_translation(instance, language, enforce=False):
@@ -82,35 +105,7 @@ def load_translation(instance, language, enforce=False):
 
 #=============================================================================
 
-def get_translation_aware_manager(model):
-    from hvad.manager import TranslationAwareManager
-    manager = TranslationAwareManager()
-    manager.model = model
-    return manager
-
-# remove when we drop support for django 1.8
-class SmartGetFieldByName(object):
-    """
-    Get field by name from a shared model or raise a smart exception to help the
-    developer.
-    """
-    def __init__(self, real):
-        self.real = real
-    
-    def __call__(self, meta, name):
-        assert not isinstance(self.real, SmartGetFieldByName)
-        try:
-            return self.real(name)
-        except FieldDoesNotExist as e:
-            try:
-                meta.translations_model._meta.get_field_by_name(name)
-            except FieldDoesNotExist:
-                raise e
-            else:
-                raise WrongManager(meta, name)
-
-
-class SmartGetField(object):
+class SmartGetField:
     ''' Smart get_field that raises a helpful exception on get_field() '''
     def __init__(self, real):
         assert not isinstance(real, SmartGetField)
@@ -130,7 +125,7 @@ class SmartGetField(object):
 #=============================================================================
 # Internal sugar
 
-class _MinimumDjangoVersionDescriptor(object): #pragma: no cover
+class _MinimumDjangoVersionDescriptor: #pragma: no cover
     ''' Ensures methods that do not exist on current Django version raise a
         helpful message and an actual AttributeError
     '''

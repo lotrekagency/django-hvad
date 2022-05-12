@@ -1,3 +1,8 @@
+""" Hvad-specific settings
+    Internal use mostly, though third-party modules may read hvad_settings.
+
+    Settings respond to setting_changed event.
+"""
 from django.conf import settings as djsettings
 from django.core import checks
 from django.test.signals import setting_changed
@@ -12,25 +17,13 @@ _default_settings = {
     'LANGUAGES': djsettings.LANGUAGES,
     'FALLBACK_LANGUAGES': None,     # dynamic default
     'TABLE_NAME_FORMAT': '%s_translation',
-    'AUTOLOAD_TRANSLATIONS': True,
+    'AUTOLOAD_TRANSLATIONS': False,
     'USE_DEFAULT_QUERYSET': False,
 }
 
 #===============================================================================
 
 class HvadSettingsChecks:
-    # Legacy setting, remove extended error description in hvad 1.9 """
-    @staticmethod
-    def check_TABLE_NAME_SEPARATOR(value):
-        return (
-            checks.Error('Obsolete setting HVAD["TABLE_NAME_SEPARATOR"]',
-                hint='TABLE_NAME_SEPARATOR has been superceded by TABLE_NAME_FORMAT. '
-                     'Set it to "%%s%stranslation" to keep the old behavior' % value,
-                obj='TABLE_NAME_SEPARATOR',
-                id='hvad.settings.E01',
-            ),
-        )
-
     @staticmethod
     def check_LANGUAGES(value):
         errors = []
@@ -81,6 +74,7 @@ class HvadSettingsChecks:
 
 @checks.register(checks.Tags.models)
 def check(app_configs, **kwargs):
+    """ Check generic hvad settings """
     errors = []
 
     # Check for old hvad settings in global namespace
@@ -103,9 +97,10 @@ def check(app_configs, **kwargs):
             errors.extend(checker(value))
     return errors
 
+#===============================================================================
 
 def _build():
-    # Generate final values
+    """ Build hvad settings from django settings """
     user_settings = getattr(djsettings, 'HVAD', {})
     hvad_settings = _default_settings.copy()
     hvad_settings.update({
@@ -121,6 +116,9 @@ def _build():
 
 hvad_settings = SimpleLazyObject(_build)
 
+#===============================================================================
+
 def invalidate_settings(**kwargs):
+    """ Empty hvad_settings so next lookup rebuilds them from django settings """
     hvad_settings._wrapped = empty
 setting_changed.connect(invalidate_settings)

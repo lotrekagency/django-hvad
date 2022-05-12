@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.forms import ModelForm
 from django.utils import translation
 from hvad.admin import TranslatableModelAdminMixin
@@ -94,7 +93,7 @@ class TestTranslationsInline(HvadTestCase, NormalFixture):
         self.assertTrue(formset.is_valid())
         formset.save()
 
-        self.assertCountEqual(instance.get_available_languages(), ('ja',))
+        self.assertCountEqual(instance.translations.all_languages(), ('ja',))
 
         # Try to delete the other translation - should fail
         initial = Formset(instance=instance)
@@ -120,7 +119,7 @@ class TestTranslationsInline(HvadTestCase, NormalFixture):
         self.assertTrue(formset.is_valid())
         formset.save()
 
-        self.assertCountEqual(instance.get_available_languages(), ('ja', 'de'))
+        self.assertCountEqual(instance.translations.all_languages(), ('ja', 'de'))
 
         obj = Normal.objects.language('ja').get(pk=instance.pk)
         self.assertEqual(obj.shared_field, NORMAL[1].shared_field)

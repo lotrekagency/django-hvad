@@ -1,5 +1,11 @@
-from django.db.models.fields import FieldDoesNotExist
-from django.utils.translation import get_language, ugettext_lazy as _
+""" Translatable-model-aware serializers for use with django-rest-framework
+    Extension to hvad public API.
+
+    TranslationsMixin                       - Add nested translations in a serializer
+    TranslatableModelSerializer             - Serializer that handles translatable fields
+    HyperlinkedTranslatableModelSerializer  - Hyperlinked serializer that handles translatable fields
+"""
+from django.utils.translation import gettext_lazy as _, get_language
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SkipField
@@ -7,6 +13,7 @@ from hvad.exceptions import WrongManager
 from hvad.utils import get_cached_translation, set_cached_translation, load_translation
 from hvad.contrib.restframework.utils import TranslationListSerializer
 from collections import OrderedDict
+from django.core.exceptions import FieldDoesNotExist
 
 __all__ = (
     'TranslationsMixin',
@@ -40,17 +47,19 @@ class NestedTranslationSerializer(serializers.ModelSerializer):
         return ret
 
 
-class TranslationsMixin(object):
+class TranslationsMixin:
     ''' Adds support for nested translations in a serializer
         Generated field will default to the model's translation accessor.
     '''
 
     # Add the translations accessor to default serializer fields
     def get_default_field_names(self, *args):
-        return (
-            super(TranslationsMixin, self).get_default_field_names(*args)
-            + [self.Meta.model._meta.translations_accessor]
-        )
+        names = super().get_default_field_names(*args)
+        query_name = '_hvad_query'
+        if query_name in names:
+            names.remove(query_name)
+        names.append(self.Meta.model._meta.translations_accessor)
+        return names
 
     def build_field(self, field_name, info, model_class, nested_depth):
         # Special handling for translations field so it is nested and not relational
@@ -75,7 +84,7 @@ class TranslationsMixin(object):
                 kwargs['required'] = False
             return NestedSerializer, kwargs
 
-        return super(TranslationsMixin, self).build_field(field_name, info, model_class, nested_depth)
+        return super().build_field(field_name, info, model_class, nested_depth)
 
     def to_internal_value(self, data):
         # Allow TranslationsMixin to be combined with TranslatableModelSerializer
@@ -96,7 +105,7 @@ class TranslationsMixin(object):
                         continue # not a translated field
                     field.read_only = True
 
-        return super(TranslationsMixin, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
     def create(self, data):
         accessor = self.Meta.model._meta.translations_accessor
@@ -105,13 +114,13 @@ class TranslationsMixin(object):
             arbitrary = translations_data.popitem()
             data.update(arbitrary[1])
             data['language_code'] = arbitrary[0]
-            instance = super(TranslationsMixin, self).create(data)
+            instance = super().create(data)
 
             for language, translation_data in translations_data.items():
                 instance.translate(language)
                 self.update_translation(instance, translation_data)
         else:
-            instance = super(TranslationsMixin, self).create(data)
+            instance = super().create(data)
         return instance
 
     def update(self, instance, data):
@@ -123,7 +132,7 @@ class TranslationsMixin(object):
             stashed = set_cached_translation(
                 instance, load_translation(instance, arbitrary[0], enforce=True)
             )
-            instance = super(TranslationsMixin, self).update(instance, data)
+            instance = super().update(instance, data)
 
             for language, translation_data in translations_data.items():
                 set_cached_translation(instance, load_translation(instance, language, enforce=True))
@@ -135,15 +144,15 @@ class TranslationsMixin(object):
                 .exclude(language_code__in=(arbitrary[0],)+tuple(translations_data.keys()))
                 .delete())
         else:
-            instance = super(TranslationsMixin, self).update(instance, data)
+            instance = super().update(instance, data)
         return instance
 
     def update_translation(self, instance, data):
-        fields = set(field.name
+        fields = {field.name
                      for field in self.Meta.model._meta.translations_model._meta.get_fields()
                      if not field.is_relation or                    # regular fields are ok
                         field.one_to_one or                         # one to one is ok
-                        field.many_to_one and field.related_model)  # many_to_one only if not generic
+                        field.many_to_one and field.related_model}  # many_to_one only if not generic
         fields.intersection_update(data)
         vetoed = fields.intersection('id', 'master', 'master_id', 'language_code')
         if vetoed:
@@ -155,7 +164,7 @@ class TranslationsMixin(object):
 
 #=============================================================================
 
-class TranslatableModelMixin(object):
+class TranslatableModelMixin:
     ''' Adds support for translated fields on a serializer '''
     default_error_messages = {
         'enforce_violation': _('Sending a language_code is invalid on serializers '
@@ -168,16 +177,17 @@ class TranslatableModelMixin(object):
             self.language = kwargs.pop('language')
         except KeyError:
             pass
-        super(TranslatableModelMixin, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_default_field_names(self, *args):
         # Add translated fields into default field names
-        return (
-            super(TranslatableModelMixin, self).get_default_field_names(*args)
-            + list(field.name
-                   for field in self.Meta.model._meta.translations_model._meta.fields
-                   if field.serialize and not field.name in veto_fields)
-        )
+        names = super().get_default_field_names(*args)
+        query_name = '_hvad_query'
+        if query_name in names:
+            names.remove(query_name)
+        names.extend(field.name for field in self.Meta.model._meta.translations_model._meta.fields
+                     if field.serialize and not field.name in veto_fields)
+        return names
 
     def get_uniqueness_extra_kwargs(self, field_names, declared_fields, *args):
         # Default implementation chokes on translated fields, filter them out
@@ -195,7 +205,7 @@ class TranslatableModelMixin(object):
                     continue
             shared_fields.append(field_name)
 
-        return super(TranslatableModelMixin, self).get_uniqueness_extra_kwargs(shared_fields, declared_fields, *args)
+        return super().get_uniqueness_extra_kwargs(shared_fields, declared_fields, *args)
 
     def build_field(self, field_name, info, model_class, nested_depth):
         # Special case the language code field - we handle it manually
@@ -216,7 +226,7 @@ class TranslatableModelMixin(object):
             return self.build_standard_field(field_name, field)
 
         # Nothing unusual, let rest_framework do its stuff
-        return super(TranslatableModelMixin, self).build_field(
+        return super().build_field(
                 field_name, info, model_class, nested_depth
         )
 
@@ -228,10 +238,10 @@ class TranslatableModelMixin(object):
         translation = load_translation(instance, language, enforce)
         set_cached_translation(instance, translation)
 
-        return super(TranslatableModelMixin, self).to_representation(instance)
+        return super().to_representation(instance)
 
     def validate(self, data):
-        data = super(TranslatableModelMixin, self).validate(data)
+        data = super().validate(data)
         if hasattr(self, 'language'):
             if 'language_code' in data:
                 raise ValidationError(self.error_messages['enforce_violation'])
@@ -244,7 +254,7 @@ class TranslatableModelMixin(object):
         # This ensures the serializer will not create untranslated instances.
         if 'language_code' not in validated_data:
             validated_data['language_code'] = None
-        return super(TranslatableModelMixin, self).create(validated_data)
+        return super().create(validated_data)
 
     def update(self, instance, data):
         'Handle switching to correct translation before actual update'
@@ -253,13 +263,15 @@ class TranslatableModelMixin(object):
         translation = load_translation(instance, language, enforce)
         set_cached_translation(instance, translation)
 
-        return super(TranslatableModelMixin, self).update(instance, data)
+        return super().update(instance, data)
 
 #=============================================================================
 
 class TranslatableModelSerializer(TranslatableModelMixin, serializers.ModelSerializer):
+    'Serializer that handles translatable fields'
     pass
 
 class HyperlinkedTranslatableModelSerializer(TranslatableModelMixin,
                                              serializers.HyperlinkedModelSerializer):
+    'HyperlinkedSerializer that handles translatable fields'
     pass

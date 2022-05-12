@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import shutil
 import tempfile
 import warnings
@@ -8,7 +7,7 @@ import warnings
 try:
     from tempfile import TemporaryDirectory
 except ImportError:
-    class TemporaryDirectory(object):
+    class TemporaryDirectory:
         def __init__(self, suffix='', prefix='tmp', dir=None):
             self.name = tempfile.mkdtemp(suffix, prefix, dir)
 
@@ -24,7 +23,7 @@ except ImportError:
 
 #===============================================================================
 
-class UserLoginContext(object):
+class UserLoginContext:
     def __init__(self, testcase, **kwargs):
         self.testcase = testcase
         self.kwargs = kwargs
@@ -37,7 +36,7 @@ class UserLoginContext(object):
 
 #===============================================================================
 
-class AssertThrowsWarningContext(object):
+class AssertThrowsWarningContext:
     def __init__(self, test_case, klass, number):
         self.test_case = test_case
         self.klass = klass

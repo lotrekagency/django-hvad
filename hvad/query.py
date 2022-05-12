@@ -1,5 +1,13 @@
+""" Django ORM internals abstraction
+    Internal use only, third-party modules and user code must not import this.
+
+    This holds tools to abstract out the exact structures used by often-changing
+    Django ORM internals. Having them all here reduces maintenance time when
+    a new Django version comes out.
+"""
 import django
-from django.db.models import Q, FieldDoesNotExist
+from django.db.models import Q
+from django.core.exceptions import FieldDoesNotExist
 from django.db.models.expressions import Expression, Col
 from django.db.models.sql.where import AND
 from collections import namedtuple
@@ -43,16 +51,10 @@ def query_terms(model, path):
 
         # STEP 2 -- Find out the target of the relation, if it is one
         if direct:  # field is on model
-            if django.VERSION >= (1, 9):
-                if field.remote_field:      # field is a foreign key, follow it
-                    target = field.remote_field.model._meta.concrete_model
-                else:
-                    target = None           # field is a regular field
+            if field.remote_field:      # field is a foreign key, follow it
+                target = field.remote_field.model._meta.concrete_model
             else:
-                if field.rel:               # field is a foreign key, follow it
-                    target = field.rel.to._meta.concrete_model
-                else:
-                    target = None           # field is a regular field
+                target = None           # field is a regular field
         else:       # field is a m2m or reverse fk, follow it
             target = field.related_model._meta.concrete_model
 
@@ -119,6 +121,11 @@ def expression_nodes(expression):
 # Query manipulations
 
 def add_alias_constraints(queryset, alias, **kwargs):
+    """ Add constraints to queryset, for given alias.
+        Bypass high-level API to prevent ORM from creating a new JOIN.
+        alias   - table name or alias to modify; must already be in query
+        kwargs  - Django-style lookup=value conditions.
+    """
     model, alias = alias
     clause = queryset.query.where_class()
     for lookup, value in kwargs.items():

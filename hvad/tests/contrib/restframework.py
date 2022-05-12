@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.utils import translation
 from rest_framework.serializers import ModelSerializer, CharField
 from hvad.test_utils.testcase import HvadTestCase
@@ -392,7 +391,7 @@ class TranslationsMixinTests(HvadTestCase, NormalFixture):
             'shared_field': 'shared',
             'translations': {
                 'en': { 'translated_field': 'English', },
-                'sr': { 'translated_field': u'српски', },
+                'sr': { 'translated_field': 'српски', },
             },
         }
         serializer = TranslationsSerializer(data=data)
@@ -403,7 +402,7 @@ class TranslationsMixinTests(HvadTestCase, NormalFixture):
         self.assertIsNot(obj.pk, None)
         qs = Normal.objects.language('all').filter(pk=obj.pk)
         self.assertCountEqual([(item.language_code, item.translated_field) for item in qs],
-                              [('en', 'English'), ('sr', u'српски')])
+                              [('en', 'English'), ('sr', 'српски')])
 
     def test_update(self):
         'Update an existing normal instance: 1 new, 1 updated, 1 deleted translations'
@@ -412,7 +411,7 @@ class TranslationsMixinTests(HvadTestCase, NormalFixture):
             'shared_field': 'shared',
             'translations': {
                 'en': { 'translated_field': 'English', }, # should updated
-                'sr': { 'translated_field': u'српски', }, # should create
+                'sr': { 'translated_field': 'српски', }, # should create
             },                                            # Japanese should be deleted
         }
         serializer = TranslationsSerializer(instance=obj, data=data)
@@ -423,7 +422,7 @@ class TranslationsMixinTests(HvadTestCase, NormalFixture):
         self.assertEqual(obj.pk, self.normal_id[1])
         qs = Normal.objects.language('all').filter(pk=self.normal_id[1])
         self.assertCountEqual([(item.language_code, item.translated_field) for item in qs],
-                              [('en', 'English'), ('sr', u'српски')])
+                              [('en', 'English'), ('sr', 'српски')])
 
     def test_update_partial(self):
         'Update an existing instance, but just some fields'
@@ -451,8 +450,8 @@ class TranslationsMixinTests(HvadTestCase, NormalFixture):
         data = {
             'name': 'shared-updated',
             'translations': {
-                'en': {'translated_field': u'English-updated'},
-                'fr': {'translated_field': u'French-added'},
+                'en': {'translated_field': 'English-updated'},
+                'fr': {'translated_field': 'French-added'},
             },
         }
         class TranslationSerializerClass(ModelSerializer):
@@ -514,7 +513,7 @@ class CombinedTests(HvadTestCase, NormalFixture):
             'language_code': 'sr',
             'translations': {
                 'en': { 'translated_field': 'English', },
-                'sr': { 'translated_field': u'српски', },
+                'sr': { 'translated_field': 'српски', },
             },
         }
         serializer = CombinedSerializer(data=data)
@@ -524,13 +523,13 @@ class CombinedTests(HvadTestCase, NormalFixture):
         self.assertIsNot(obj.pk, None)
         qs = Normal.objects.language('all').filter(pk=obj.pk)
         self.assertCountEqual([(item.language_code, item.translated_field) for item in qs],
-                              [('en', 'English'), ('sr', u'српски')])
+                              [('en', 'English'), ('sr', 'српски')])
 
     def test_create_translatable(self):
         'Create a new Normal instance, in translatablemodelserializer style'
         data = {
             'shared_field': 'shared',
-            'translated_field': u'српски',
+            'translated_field': 'српски',
             'language_code': 'sr'
         }
         serializer = CombinedSerializer(data=data)
@@ -540,7 +539,7 @@ class CombinedTests(HvadTestCase, NormalFixture):
         self.assertIsNot(obj.pk, None)
         qs = Normal.objects.language('all').filter(pk=obj.pk)
         self.assertCountEqual([(item.language_code, item.translated_field) for item in qs],
-                              [('sr', u'српски')])
+                              [('sr', 'српски')])
 
     def test_update_translations(self):
         'Update an existing normal instance: 1 new, 1 updated, 1 deleted translations'
@@ -550,7 +549,7 @@ class CombinedTests(HvadTestCase, NormalFixture):
             'language_code': 'ignored',
             'translations': {
                 'en': { 'translated_field': 'English', }, # should updated
-                'sr': { 'translated_field': u'српски', }, # should create
+                'sr': { 'translated_field': 'српски', }, # should create
             },                                            # Japanese should be deleted
         }
         serializer = CombinedSerializer(instance=obj, data=data)
@@ -560,14 +559,14 @@ class CombinedTests(HvadTestCase, NormalFixture):
         self.assertEqual(obj.pk, self.normal_id[1])
         qs = Normal.objects.language('all').filter(pk=self.normal_id[1])
         self.assertCountEqual([(item.language_code, item.translated_field) for item in qs],
-                              [('en', 'English'), ('sr', u'српски')])
+                              [('en', 'English'), ('sr', 'српски')])
 
     def test_update_translatable(self):
         'Update an existing normal instance translation in translatablemodel mode'
         obj = Normal.objects.untranslated().get(pk=self.normal_id[1])
         data = {
             'shared_field': 'shared',
-            'translated_field': u'српски',
+            'translated_field': 'српски',
             'language_code': 'sr'
         }
         serializer = CombinedSerializer(instance=obj, data=data)
@@ -579,4 +578,4 @@ class CombinedTests(HvadTestCase, NormalFixture):
         self.assertCountEqual([(item.language_code, item.translated_field) for item in qs],
                               [('en', NORMAL[1].translated_field['en']),
                                ('ja', NORMAL[1].translated_field['ja']),
-                               ('sr', u'српски')])
+                               ('sr', 'српски')])

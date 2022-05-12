@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 from django.contrib.auth.models import User
 from hvad.test_utils.data import USER, NORMAL, STANDARD, CONCRETEAB, DATE, QONORMAL
 from hvad.test_utils.project.app.models import Normal, Standard, ConcreteAB, Date, QONormal
 
-class Fixture(object):
+class Fixture:
     translations = ('en', 'ja')
     def create_fixtures(self):
         pass
@@ -14,7 +13,7 @@ class NormalFixture(Fixture):
     normal_count = 0
 
     def create_fixtures(self):
-        super(NormalFixture, self).create_fixtures()
+        super().create_fixtures()
         assert self.normal_count <= len(NORMAL), 'Not enough fixtures in data'
 
         self.normal_id = {}
@@ -29,12 +28,13 @@ class NormalFixture(Fixture):
             obj.save()
         return obj
 
+#===============================================================================
 
 class StandardFixture(NormalFixture):
     standard_count = 0
 
     def create_fixtures(self):
-        super(StandardFixture, self).create_fixtures()
+        super().create_fixtures()
         assert self.standard_count <= len(STANDARD)
 
         self.standard_id = {}
@@ -48,12 +48,13 @@ class StandardFixture(NormalFixture):
         )
         return obj
 
+#===============================================================================
 
 class QONormalFixture(Fixture):
     qonormal_count = 0
 
     def create_fixtures(self):
-        super(QONormalFixture, self).create_fixtures()
+        super().create_fixtures()
         assert self.qonormal_count <= len(QONORMAL), 'Not enough fixtures in data'
 
         self.qonormal_id = {}
@@ -68,12 +69,13 @@ class QONormalFixture(Fixture):
             obj.save()
         return obj
 
+#===============================================================================
 
 class ConcreteABFixture(NormalFixture):
     concreteab_count = 0
 
     def create_fixtures(self):
-        super(ConcreteABFixture, self).create_fixtures()
+        super().create_fixtures()
         assert self.concreteab_count <= len(CONCRETEAB)
 
         self.concreteab_id = {}
@@ -94,12 +96,13 @@ class ConcreteABFixture(NormalFixture):
             obj.save()
         return obj
 
+#===============================================================================
 
 class DateFixture(Fixture):
     date_count = 0
 
     def create_fixtures(self):
-        super(DateFixture, self).create_fixtures()
+        super().create_fixtures()
         assert self.date_count <= len(DATE)
 
         self.date_id = {}
@@ -114,10 +117,11 @@ class DateFixture(Fixture):
             obj.save()
         return obj
 
+#===============================================================================
 
 class UsersFixture(Fixture):
     def create_fixtures(self):
-        super(UsersFixture, self).create_fixtures()
+        super().create_fixtures()
 
         self.user_id = {}
         for user in USER:
@@ -132,4 +136,3 @@ class UsersFixture(Fixture):
         obj.set_password(data['username'])
         obj.save()
         return obj
-

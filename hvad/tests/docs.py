@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from django.test.testcases import TestCase
 from hvad.test_utils.context_managers import TemporaryDirectory
 import os
@@ -31,4 +30,4 @@ class DocumentationTests(TestCase):
                 except Exception:
                     e = sys.exc_info()[1]
                     fobj.seek(0)
-                    self.fail('%s\n%s' % (e, fobj.read()))
+                    self.fail('{}\n{}'.format(e, fobj.read()))
