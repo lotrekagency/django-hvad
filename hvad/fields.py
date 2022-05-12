@@ -65,8 +65,10 @@ class BetterTranslationsField:
                 seen.add(lang)
                 self._fallbacks.append(lang)
 
-    def get_extra_restriction(self, where_class, alias, related_alias):
+    def get_extra_restriction(self, *args):
         """ Add the fallbacks constraint to the self-JOIN """
+        args = args if django.VERSION > (3, 8) else args[1:]
+        alias, related_alias = args
         return FallbacksConstraint(related_alias, alias, self._fallbacks)
 
     def get_joining_columns(self):
@@ -129,10 +131,11 @@ class SingleTranslationObject(ForeignObject):
             on_delete=models.DO_NOTHING,
         )
 
-    def get_extra_restriction(self, where_class, alias, related_alias):
+    def get_extra_restriction(self, *args):
         """ Inject the LanguageConstraint into the join clause. Actual language
             will be resolved by the constraint itself.
         """
+        alias = args[0] if django.VERSION > (3, 8) else args[1]
         related_model = self.related_model
         return LanguageConstraint(
             Col(alias, related_model._meta.get_field('language_code'), models.CharField())
