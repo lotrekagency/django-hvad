@@ -1,5 +1,4 @@
 from django.utils import translation
-from unittest import skip
 from hvad.test_utils.data import QONORMAL
 from hvad.test_utils.testcase import HvadTestCase
 from hvad.test_utils.project.app.models import QONormal, QOSimpleRelated, QOMany
@@ -99,18 +98,17 @@ class RelatedManagerTests(HvadTestCase, QONormalFixture):
             obj.translate('ja')
             obj.save()
 
-    @skip
     def test_forward_foreign_key(self):
         """ ForeignKey accessor should use the TranslationQueryset and fetch
             the translation when it retrieves the shared model.
         """
-        with translation.override('en'):
+        with self.settings(HVAD={'AUTOLOAD_TRANSLATIONS': True}), translation.override('en'):
             related = QOSimpleRelated.objects.get(pk=self.related.pk)
             self.assertEqual(related.translated_field, self.related.translated_field)
 
             with self.assertNumQueries(1):
                 self.assertEqual(related.normal.shared_field, QONORMAL[1].shared_field)
-            with self.assertNumQueries(0):
+            with self.assertNumQueries(1):
                 self.assertEqual(related.normal.translated_field, QONORMAL[1].translated_field['en'])
 
     def test_reverse_foreign_key_query(self):
