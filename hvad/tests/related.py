@@ -47,7 +47,7 @@ class NormalToNormalFKTest2(TransactionTestCase, NormalFixture):
         related.normal_id = 999
         if connection.features.supports_foreign_keys:
             if (connection.features.supports_forward_references and
-                not connection.features.autocommits_when_autocommit_is_off):
+                not getattr(connection.features, 'autocommits_when_autocommit_is_off', False)):
                 try:
                     transaction.set_autocommit(False)
                     related.save()
