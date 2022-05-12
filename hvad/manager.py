@@ -328,15 +328,19 @@ class TranslationQueryset(QuerySet):
             ))
 
             add_alias_constraints(self, (self.model, alias), id__isnull=True)
-            q_filter = ('%s__isnull' % masteratt, False)
-            self.query.add_filter(*q_filter if django.VERSION > (3, 8) else q_filter)
+            if django.VERSION > (3, 8):
+                self.query.add_filter('%s__isnull' % masteratt, False)
+            else:
+                self.query.add_filter(('%s__isnull' % masteratt, False))
             if not self._skip_master_select and getattr(self, '_fields', None) is None:
                 self.query.add_select_related(('master',))
 
         else:
             language_code = self._language_code or get_language()
-            q_filter = ('language_code', language_code)
-            self.query.add_filter(*q_filter if django.VERSION > (3, 8) else q_filter)
+            if django.VERSION > (3, 8):
+                self.query.add_filter('language_code', language_code)
+            else:
+                self.query.add_filter(('language_code', language_code))
             self._add_select_related()
 
         # if queryset is about to use the model's default ordering, we
