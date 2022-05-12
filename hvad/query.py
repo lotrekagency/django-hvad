@@ -127,7 +127,11 @@ def add_alias_constraints(queryset, alias, **kwargs):
         kwargs  - Django-style lookup=value conditions.
     """
     model, alias = alias
-    clause = queryset.query.where_class()
+    if django.VERSION > (3, 8):
+        from django.db.models.sql.where import WhereNode
+        clause = WhereNode()
+    else:
+        clause = queryset.query.where_class()
     for lookup, value in kwargs.items():
         field_name, lookup = lookup.split('__')
         clause.add(queryset.query.build_lookup(
