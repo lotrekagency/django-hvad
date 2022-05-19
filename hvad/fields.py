@@ -114,7 +114,8 @@ class SingleTranslationObject(ForeignObject):
         Allows delegating translation loading to Django's select_related.
     """
     requires_unique_target = False
-
+    db_constraint = False
+    
     def __init__(self, model, translations_model=None):
         if isinstance(model, str):
             model = apps.get_model(model)
@@ -140,6 +141,20 @@ class SingleTranslationObject(ForeignObject):
         return LanguageConstraint(
             Col(alias, related_model._meta.get_field('language_code'), models.CharField())
         )
+        
+    def db_type(self, connection):
+        return self.target_field.rel_db_type(connection=connection)
+    
+    def db_parameters(self, connection):
+        return {"type": self.db_type(connection), "check": self.db_check(connection)}
+
+    def get_attname(self):
+        return "%s_id" % self.name
+
+    def get_attname_column(self):
+        attname = self.get_attname()
+        column = self.db_column or attname
+        return attname, column
 
     def get_path_info(self, filtered_relation=None):
         """ Mark the field as indirect so most Django automation ignores it """
