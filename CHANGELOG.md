@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.1 (2022-05-19)
+### Fix
+* Added missing methods to SingleTranslationObject to make it work with django 4 ([`b6bae7c`](https://github.com/lotrekagency/django-hvad/commit/b6bae7c381844e34e884e3f61448c36fed94d7f5))
+
 ## v2.0.0 (2022-05-12)
 ### Fix
 * Query._filter_or_exclude to work from django 2 to django 4 ([`910374d`](https://github.com/lotrekagency/django-hvad/commit/910374d88593808a35a38c6d2a5edaa3d88c978a))
