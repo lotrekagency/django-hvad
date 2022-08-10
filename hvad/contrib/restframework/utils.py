@@ -34,8 +34,20 @@ class TranslationListSerializer(serializers.ListSerializer):
             })
 
         ret, errors = {}, {}
+        instance = self.child.instance
+        existing_objects = (
+            {
+                obj.language_code: obj
+                for obj in instance._meta.translations_model.objects.filter(
+                    master=instance
+                )
+            }
+            if instance
+            else {}
+        )
         for language, translation in data.items():
             try:
+                self.child.instance = existing_objects.get(language)
                 validated = self.child.run_validation(translation)
             except ValidationError as exc:
                 errors[language] = exc.detail
