@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.2 (2022-08-10)
+### Fix
+* **drf:** Pass instance to serializers for uniqueness validations ([`1c45caa`](https://github.com/lotrekagency/django-hvad/commit/1c45caa6fa6fe26e8a2ccf9ff82af6fd60cebf33))
+
 ## v2.0.1 (2022-05-19)
 ### Fix
 * Added missing methods to SingleTranslationObject to make it work with django 4 ([`b6bae7c`](https://github.com/lotrekagency/django-hvad/commit/b6bae7c381844e34e884e3f61448c36fed94d7f5))
