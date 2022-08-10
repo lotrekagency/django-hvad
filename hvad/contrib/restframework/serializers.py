@@ -79,7 +79,7 @@ class TranslationsMixin:
             })
             NestedSerializer = type('NestedSerializer', (BaseSerializer,), {'Meta': NestedMeta})
 
-            kwargs = {'many': True}
+            kwargs = {'many': True, 'instance': self.instance}
             if isinstance(self, TranslatableModelMixin):
                 kwargs['required'] = False
             return NestedSerializer, kwargs
