@@ -267,7 +267,7 @@ class DefinitionTests(HvadTestCase):
                 base_class=CustomTranslation,
                 tfield=models.CharField(max_length=250),
             )
-        obj = CustomBaseModel(language_code='en')
+        obj = CustomBaseModel(pk=1, language_code='en')
         self.assertTrue(issubclass(CustomBaseModel._meta.translations_model, CustomTranslation))
         self.assertEqual(obj.translations.active.test(), 'foo')
 
