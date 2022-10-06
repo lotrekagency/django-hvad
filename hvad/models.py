@@ -9,6 +9,7 @@ from django.db.models.manager import Manager
 from django.db.models.signals import class_prepared
 from django.utils.translation import get_language
 from hvad.descriptors import LanguageCodeAttribute, TranslatedAttribute
+from hvad.exceptions import WrongManager
 from hvad.fields import SingleTranslationObject, MasterKey
 from hvad.manager import TranslationManager
 from hvad.settings import hvad_settings
@@ -200,6 +201,13 @@ class TranslatableModel(models.Model):
     class Meta:
         abstract = True
         base_manager_name = '_plain_manager'
+
+    def serializable_value(self, field_name):
+        try:
+            field = self._meta.get_field(field_name)
+        except (FieldDoesNotExist, WrongManager):
+            return getattr(self, field_name)
+        return getattr(self, field.attname)
 
     def __init__(self, *args, **kwargs):
         # Split arguments into shared/translatd
