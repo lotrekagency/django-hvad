@@ -295,7 +295,7 @@ class TranslatableModel(models.Model):
         super().clean_fields(exclude=exclude)
         translation = get_cached_translation(self)
         if translation is not None:
-            translation.clean_fields(exclude=exclude + ['id', 'master', 'master_id', 'language_code'])
+            translation.clean_fields(exclude=type(exclude)([*exclude, 'id', 'master', 'master_id', 'language_code']))
 
     def validate_unique(self, exclude=None):
         super().validate_unique(exclude=exclude)
