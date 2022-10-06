@@ -177,11 +177,11 @@ class TranslatedFields:
 class BaseTranslationModel(models.Model):
     """ Base model for all translation models """
 
-    def _get_unique_checks(self, exclude=None):
+    def _get_unique_checks(self, exclude=None, *args, **kwargs):
         # Due to the way translations are handled, checking for unicity of
         # the ('language_code', 'master') constraint is useless. We filter it out
         # here so as to avoid a useless query
-        unique_checks, date_checks = super()._get_unique_checks(exclude=exclude)
+        unique_checks, date_checks = super()._get_unique_checks(exclude=exclude,  *args, **kwargs)
         unique_checks = [check for check in unique_checks
                          if check != (self.__class__, ('language_code', 'master'))]
         return unique_checks, date_checks
@@ -295,7 +295,7 @@ class TranslatableModel(models.Model):
         super().clean_fields(exclude=exclude)
         translation = get_cached_translation(self)
         if translation is not None:
-            translation.clean_fields(exclude=list([*exclude, 'id', 'master', 'master_id', 'language_code']))
+            translation.clean_fields(exclude=type(exclude)([*exclude, 'id', 'master', 'master_id', 'language_code']))
 
     def validate_unique(self, exclude=None):
         super().validate_unique(exclude=exclude)

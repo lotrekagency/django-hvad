@@ -169,12 +169,18 @@ class BaseTranslatableModelForm(BaseModelForm):
                 (self._meta.fields and f.name not in self._meta.fields) or
                 (self._meta.exclude and f.name in self._meta.exclude) or
                 (f.name in self._errors)):
-                exclude.append(f.name)
+                if type(exclude) == set:
+                    exclude.add(f.name)
+                else:
+                    exclude.append(f.name)
             else:
                 form_field = self.fields[f.name]
                 field_value = self.cleaned_data.get(f.name, None)
                 if not f.blank and not form_field.required and field_value in form_field.empty_values:
-                    exclude.append(f.name)
+                    if type(exclude) == set:
+                        exclude.add(f.name)
+                    else:
+                        exclude.append(f.name)
         return exclude
 
     def save(self, commit=True):
@@ -313,7 +319,10 @@ class BaseTranslationFormSet(BaseInlineFormSet):
             set_cached_translation(master, form.instance)
             exclusions = form._get_validation_exclusions()
             # fields from the shared model should not be validated
-            exclusions.extend(f.name for f in master._meta.fields)
+            if type(exclusions) == set:
+                exclusions.union(f.name for f in master._meta.fields)
+            else:
+                exclusions.extend(f.name for f in master._meta.fields)
             try:
                 master.clean()
             except ValidationError as e:
