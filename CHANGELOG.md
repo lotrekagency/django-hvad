@@ -2,6 +2,14 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.3 (2022-10-06)
+### Fix
+* Fix some django 4.1 compability issues ([`11ef233`](https://github.com/lotrekagency/django-hvad/commit/11ef23387573f5af5bf8631c5722aa2c9451246a))
+* Fix clean_fields to return a list ([`9a18171`](https://github.com/lotrekagency/django-hvad/commit/9a181715a35b83af45a1c0da797470a9b4798bba))
+* Fix clean_fields concat set and lists ([`7a247c2`](https://github.com/lotrekagency/django-hvad/commit/7a247c2e488f17b9b9eb9b0fed1224e27b7c7099))
+* Fix django model serializable_value not catching for WrongManager exception ([`34abd77`](https://github.com/lotrekagency/django-hvad/commit/34abd77fabe3e455f04d24e668314f612e6bd8fa))
+* **rest_framework:** Fixed TranslatableModelMixin build_fields() method building only standard field ([`23095fb`](https://github.com/lotrekagency/django-hvad/commit/23095fb9734f7f7f2c000b10fa57e5a74d925bd3))
+
 ## v2.0.2 (2022-08-10)
 ### Fix
 * **drf:** Pass instance to serializers for uniqueness validations ([`1c45caa`](https://github.com/lotrekagency/django-hvad/commit/1c45caa6fa6fe26e8a2ccf9ff82af6fd60cebf33))
