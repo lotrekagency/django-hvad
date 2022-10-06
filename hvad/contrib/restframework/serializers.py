@@ -14,6 +14,7 @@ from hvad.utils import get_cached_translation, set_cached_translation, load_tran
 from hvad.contrib.restframework.utils import TranslationListSerializer
 from collections import OrderedDict
 from django.core.exceptions import FieldDoesNotExist
+from rest_framework.utils import model_meta
 
 __all__ = (
     'TranslationsMixin',
@@ -208,9 +209,10 @@ class TranslatableModelMixin:
         return super().get_uniqueness_extra_kwargs(shared_fields, declared_fields, *args)
 
     def build_field(self, field_name, info, model_class, nested_depth):
+        trans_model = model_class._meta.translations_model
         # Special case the language code field - we handle it manually
         if field_name == 'language_code':
-            field = model_class._meta.translations_model._meta.get_field(field_name)
+            field = trans_model._meta.get_field(field_name)
             klass, kwargs = self.build_standard_field(field_name, field)
             kwargs['required'] = False
             return klass, kwargs
@@ -219,12 +221,15 @@ class TranslatableModelMixin:
         field = None
         if field_name not in veto_fields:
             try:
-                field = model_class._meta.translations_model._meta.get_field(field_name)
+                field = trans_model._meta.get_field(field_name)
             except FieldDoesNotExist:
                 pass
+        # If field is found in translation_model rebuild field with correct model and info.
         if field is not None:
-            return self.build_standard_field(field_name, field)
-
+            trans_info = model_meta.get_field_info(trans_model)
+            return super().build_field(
+                field_name, trans_info, trans_model, nested_depth
+            )
         # Nothing unusual, let rest_framework do its stuff
         return super().build_field(
                 field_name, info, model_class, nested_depth
