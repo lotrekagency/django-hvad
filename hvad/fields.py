@@ -250,8 +250,8 @@ class TranslationsAccessor(ReverseManyToOneDescriptor):
                     try:
                         return next(obj for obj in qs if obj.language_code == language)
                     except StopIteration:
-                        raise self.model.DoesNotExist('%r is not translated in %r' %
-                                                      (self.instance, language))
+                        raise self.model.DoesNotExist('%r(%r) is not translated in %r' %
+                                                      (self.instance.__class__.__name__, self.instance.pk, language))
                 else:
                     return qs.get(language_code=language)
 
