@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.4 (2022-10-17)
+### Fix
+* Fixed recursion errors for models with bads str functions ([`2059deb`](https://github.com/lotrekagency/django-hvad/commit/2059debc85e194b53835b4e1d2ec57b3aabaff1c))
+
 ## v2.0.3 (2022-10-06)
 ### Fix
 * Fix some django 4.1 compability issues ([`11ef233`](https://github.com/lotrekagency/django-hvad/commit/11ef23387573f5af5bf8631c5722aa2c9451246a))
