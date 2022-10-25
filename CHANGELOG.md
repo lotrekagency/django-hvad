@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.5 (2022-10-25)
+### Fix
+* Run validation on translations list consistent with language ([`781c6ea`](https://github.com/lotrekagency/django-hvad/commit/781c6ea8b183a223333c0a1f5d2f69fa43d5f274))
+
 ## v2.0.4 (2022-10-17)
 ### Fix
 * Fixed recursion errors for models with bads str functions ([`2059deb`](https://github.com/lotrekagency/django-hvad/commit/2059debc85e194b53835b4e1d2ec57b3aabaff1c))
