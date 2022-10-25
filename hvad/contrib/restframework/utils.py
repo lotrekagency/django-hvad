@@ -5,7 +5,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.settings import api_settings
 from hvad.utils import get_cached_translation, set_cached_translation
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, get_language, activate
 
 __all__ = ('TranslationListSerializer', )
 
@@ -45,7 +45,9 @@ class TranslationListSerializer(serializers.ListSerializer):
             if instance
             else {}
         )
+        old_language = get_language()
         for language, translation in data.items():
+            activate(language)
             try:
                 self.child.instance = existing_objects.get(language)
                 validated = self.child.run_validation(translation)
@@ -54,6 +56,7 @@ class TranslationListSerializer(serializers.ListSerializer):
             else:
                 ret[language] = validated
                 errors[language] = {}
+        activate(old_language)
         if any(errors.values()):
             raise ValidationError(errors)
         return ret
@@ -66,9 +69,12 @@ class TranslationListSerializer(serializers.ListSerializer):
         ''' Combine each translation in turn so the serializer has a full object '''
         result = {}
         stashed = get_cached_translation(instance)
+        old_language = get_language()
         for translation in getattr(instance, self.source).all():
+            activate(translation.language_code)
             set_cached_translation(instance, translation)
             result[translation.language_code] = self.child.to_representation(instance)
+        activate(old_language)
         set_cached_translation(instance, stashed)
         return result
 
