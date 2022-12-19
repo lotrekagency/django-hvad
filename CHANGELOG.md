@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.6 (2022-12-19)
+### Fix
+* **drf:** Prevent translation deletion on update with PATCH method ([`f645b14`](https://github.com/lotrekagency/django-hvad/commit/f645b14bc40342ad9a09b69cc1d5378d1a220e70))
+
 ## v2.0.5 (2022-10-25)
 ### Fix
 * Run validation on translations list consistent with language ([`781c6ea`](https://github.com/lotrekagency/django-hvad/commit/781c6ea8b183a223333c0a1f5d2f69fa43d5f274))
