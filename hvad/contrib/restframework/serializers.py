@@ -111,39 +111,48 @@ class TranslationsMixin:
     def create(self, data):
         accessor = self.Meta.model._meta.translations_accessor
         translations_data = data.pop(accessor, None)
+        instance = None
         if translations_data:
-            arbitrary = translations_data.popitem()
-            data.update(arbitrary[1])
-            data['language_code'] = arbitrary[0]
-            instance = super().create(data)
-
             for language, translation_data in translations_data.items():
+                if not isinstance(translation_data, dict):
+                    continue
+                if not instance:
+                    data.update(translation_data)
+                    data['language_code'] = language
+                    instance = super().create(data)
+                    continue
                 instance.translate(language)
                 self.update_translation(instance, translation_data)
-        else:
+        if not instance:
             instance = super().create(data)
         return instance
 
     def update(self, instance, data):
         accessor = self.Meta.model._meta.translations_accessor
         translations_data = data.pop(accessor, None)
+        updated = None
+        to_delete = []
         if translations_data:
-            arbitrary = translations_data.popitem()
-            data.update(arbitrary[1])
-            stashed = set_cached_translation(
-                instance, load_translation(instance, arbitrary[0], enforce=True)
-            )
-            instance = super().update(instance, data)
-
             for language, translation_data in translations_data.items():
-                set_cached_translation(instance, load_translation(instance, language, enforce=True))
-                self.update_translation(instance, translation_data)
-
-            set_cached_translation(instance, stashed)
-            qs = instance._meta.translations_model.objects
-            (qs.filter(master=instance)
-                .exclude(language_code__in=(arbitrary[0],)+tuple(translations_data.keys()))
-                .delete())
+                if not isinstance(translation_data, dict):
+                    if translation_data == False:
+                        to_delete.append(language)
+                    continue
+                if not updated:
+                    data.update(translation_data)
+                    stashed = set_cached_translation(instance, load_translation(instance, language, enforce=True))
+                    updated = super().update(instance, data)
+                    continue
+                set_cached_translation(updated, load_translation(updated, language, enforce=True))
+                self.update_translation(updated, translation_data)
+        if updated:
+            set_cached_translation(updated, stashed)
+            qs = updated._meta.translations_model.objects.filter(master=updated)
+            if getattr(self, "partial", False):
+                qs = qs.filter(language_code__in=to_delete).delete()
+            else:
+                qs.exclude(language_code__in=tuple(translations_data.keys())).delete()
+            instance = updated
         else:
             instance = super().update(instance, data)
         return instance
