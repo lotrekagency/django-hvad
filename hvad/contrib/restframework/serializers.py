@@ -147,14 +147,14 @@ class TranslationsMixin:
                 self.update_translation(updated, translation_data)
         if updated:
             set_cached_translation(updated, stashed)
-            qs = updated._meta.translations_model.objects.filter(master=updated)
-            if getattr(self, "partial", False):
-                qs = qs.filter(language_code__in=to_delete).delete()
-            else:
-                qs.exclude(language_code__in=tuple(translations_data.keys())).delete()
             instance = updated
         else:
             instance = super().update(instance, data)
+        qs = instance._meta.translations_model.objects.filter(master=instance)
+        if getattr(self, "partial", False):
+            qs = qs.filter(language_code__in=to_delete).delete()
+        elif translations_data:
+            qs.exclude(language_code__in=tuple(translations_data.keys())).delete()
         return instance
 
     def update_translation(self, instance, data):
