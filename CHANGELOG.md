@@ -2,6 +2,10 @@
 
 <!--next-version-placeholder-->
 
+## v2.0.7 (2022-12-21)
+### Fix
+* **drf:** Fix single translation delete with patch edge case ([`bc5b56a`](https://github.com/lotrekagency/django-hvad/commit/bc5b56ad221ab7bd1a60811aa22774ab8e74b81f))
+
 ## v2.0.6 (2022-12-19)
 ### Fix
 * **drf:** Prevent translation deletion on update with PATCH method ([`f645b14`](https://github.com/lotrekagency/django-hvad/commit/f645b14bc40342ad9a09b69cc1d5378d1a220e70))
